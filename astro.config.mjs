@@ -18,7 +18,6 @@ export default defineConfig({
 			database: d1({ binding: "DB", session: "auto" }),
 			storage: r2({ binding: "MEDIA" }),
 			plugins: [formsPlugin()],
-			marketplace: "https://marketplace.emdashcms.com",
 		}),
 	],
 	fonts: [
