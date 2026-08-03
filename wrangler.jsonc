@@ -7,7 +7,7 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "hyvoimailijat-db","database_id": "5aa0e625-7886-4fb3-932f-10b43c11087b",
+			"database_name": "hyvoimailijat-db","database_id": "d1621ae3-45ee-4807-9038-c0222a4c13e4",
 		},
 	],
 	"r2_buckets": [
