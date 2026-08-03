@@ -6,13 +6,13 @@ import { getReadingTime } from "../utils/reading-time";
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	orderBy: { published_at: "desc" },
-	limit: 4,
+	limit: 10,
 });
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 const heroPost = posts.find((post) => post.data.featured_image);
-const latestPosts = posts.slice(0, 3);
+const latestPosts = posts.slice(0, 10);
 
 function formatDate(date: Date | null | undefined) {
 	if (!date) return null;
@@ -92,16 +92,21 @@ function formatDate(date: Date | null | undefined) {
 		</header>
 		<div class="news-list">
 			{latestPosts.map((post) => (
-				<a href={`/posts/${post.id}`} class="news-row">
-					<div>
+				<a href={`/posts/${post.id}`} class="article-card">
+					{post.data.featured_image && (
+						<div class="article-card-image">
+							<Image image={post.data.featured_image} />
+						</div>
+					)}
+					<div class="article-card-body">
+						<span class="article-card-meta">
+							{formatDate(post.data.publishedAt)}
+							{" / "}
+							{getReadingTime(post.data.content)} min
+						</span>
 						<h3>{post.data.title}</h3>
 						<p>{post.data.excerpt}</p>
 					</div>
-					<span>
-						{formatDate(post.data.publishedAt)}
-						{" / "}
-						{getReadingTime(post.data.content)} min
-					</span>
 				</a>
 			))}
 		</div>
