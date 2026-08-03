@@ -48,8 +48,21 @@ A clean, minimal blog built with [EmDash](https://github.com/emdash-cms/emdash) 
 
 ```bash
 pnpm install
-pnpm bootstrap
+pnpm sync:prod
 pnpm dev
+```
+
+`pnpm sync:prod` copies the production D1 database and every R2 media object
+referenced by the `media` table into local Wrangler storage. It resets only the
+local Wrangler D1/R2 state under `.wrangler/state/v3`; production is read-only
+during the sync.
+
+Useful options:
+
+```bash
+pnpm sync:prod -- --skip-media
+pnpm sync:prod -- --media-only --resume-media
+pnpm sync:prod -- --dry-run
 ```
 
 ## Deploying
