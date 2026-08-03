@@ -1,0 +1,55 @@
+---
+import type { PortableTextBlock } from "emdash";
+import { parseTableFromPortableText } from "../utils/club-pages";
+
+interface TableEntry {
+	data: {
+		title?: string;
+		content?: PortableTextBlock[];
+	};
+}
+
+interface Props {
+	tables: TableEntry[];
+}
+
+const { tables } = Astro.props;
+const parsedTables = tables
+	.map((entry) => ({
+		title: entry.data.title ?? "Ranking",
+		rows: parseTableFromPortableText(entry.data.content),
+	}))
+	.filter((table) => table.rows.length > 1)
+	.map((table) => ({
+		...table,
+		rows: table.rows.filter((row) => row.some(Boolean)),
+	}));
+---
+
+<div class="ranking-stack">
+	{
+		parsedTables.map((table) => (
+			<section class="ranking-block">
+				<header>
+					<h2>{table.title}</h2>
+				</header>
+				<div class="table-scroll">
+					<table>
+						<thead>
+							<tr>
+								{table.rows[0].map((cell) => <th>{cell}</th>)}
+							</tr>
+						</thead>
+						<tbody>
+							{table.rows.slice(1).map((row) => (
+								<tr>
+									{row.map((cell) => <td>{cell}</td>)}
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+			</section>
+		))
+	}
+</div>

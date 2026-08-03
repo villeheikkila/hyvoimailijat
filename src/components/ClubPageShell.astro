@@ -1,0 +1,59 @@
+---
+import { PortableText } from "emdash/ui";
+import type { PortableTextBlock } from "emdash";
+import Base from "../layouts/Base.astro";
+import type { ClubPageCopy, Locale } from "../utils/club-pages";
+
+interface Props {
+	copy: ClubPageCopy;
+	lang: Locale;
+	content?: PortableTextBlock[];
+	contentRef?: { collection: string; id: string; slug?: string | null };
+}
+
+const { copy, lang, content, contentRef } = Astro.props;
+---
+
+<Base
+	title={copy.title}
+	description={copy.description}
+	lang={lang}
+	content={contentRef}
+>
+	<article class="club-page">
+		<header class="club-page-hero">
+			<p class="eyebrow">{copy.kicker}</p>
+			<h1>{copy.title}</h1>
+			<p>{copy.description}</p>
+		</header>
+
+		{copy.highlights && (
+			<div class="fact-row">
+				{copy.highlights.map((item) => (
+					<div class="fact-item">
+						<span>{item.label}</span>
+						<strong>{item.value}</strong>
+					</div>
+				))}
+			</div>
+		)}
+
+		{copy.steps && (
+			<ol class="process-list">
+				{copy.steps.map((step) => (
+					<li>{step}</li>
+				))}
+			</ol>
+		)}
+
+		{
+			content && (
+				<div class="rich-content">
+					<PortableText value={content} />
+				</div>
+			)
+		}
+
+		<slot />
+	</article>
+</Base>

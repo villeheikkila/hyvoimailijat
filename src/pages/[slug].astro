@@ -1,0 +1,48 @@
+---
+import { getEmDashCollection, getEmDashEntry, decodeSlug } from "emdash";
+import ClubPageShell from "../components/ClubPageShell.astro";
+import MemberApplicationForm from "../components/MemberApplicationForm.astro";
+import RankingTables from "../components/RankingTables.astro";
+import { pageCopies } from "../utils/club-pages";
+
+const slug = decodeSlug(Astro.params.slug);
+
+const routeMap: Record<string, keyof typeof pageCopies> = {
+	seura: "about",
+	"liity-jaseneksi": "join",
+	"hyv-voimaliiga-saannot": "rules",
+	ranking: "ranking",
+};
+
+if (!slug || !routeMap[slug]) {
+	return Astro.redirect("/404");
+}
+
+const pageKey = routeMap[slug];
+const copy = pageCopies[pageKey].fi;
+const { entry: page, cacheHint } = await getEmDashEntry("pages", copy.cmsSlug);
+const content = pageKey === "join" || pageKey === "ranking" ? undefined : page?.data.content;
+
+let rankingTables: Array<{ data: { title?: string; content?: unknown } }> = [];
+if (pageKey === "ranking") {
+	const result = await (getEmDashCollection as any)("tablepress_table", {
+		orderBy: { created_at: "asc" },
+		limit: 10,
+	});
+	rankingTables = result.entries.filter((entry: { data: { title?: string } }) =>
+		["Ranking miehet", "Ranking naiset"].includes(entry.data.title ?? "")
+	);
+}
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+---
+
+<ClubPageShell
+	copy={copy}
+	lang="fi"
+	content={content}
+	contentRef={page ? { collection: "pages", id: page.data.id, slug: copy.cmsSlug } : undefined}
+>
+	{pageKey === "join" && <MemberApplicationForm lang="fi" />}
+	{pageKey === "ranking" && <RankingTables tables={rankingTables as any} />}
+</ClubPageShell>

@@ -1,0 +1,87 @@
+---
+import type { Locale } from "../utils/club-pages";
+
+interface Props {
+	lang: Locale;
+}
+
+const { lang } = Astro.props;
+const sent = Astro.url.searchParams.get("sent") === "1";
+const error = Astro.url.searchParams.get("error") === "1";
+const copy =
+	lang === "fi"
+		? {
+				success: "Hakemus vastaanotettu. Palaamme asiaan sähköpostilla.",
+				error: "Tarkista pakolliset kentät ja sähköpostiosoitteen vahvistus.",
+				firstName: "Etunimi",
+				lastName: "Sukunimi",
+				email: "Sähköposti",
+				confirmEmail: "Vahvista sähköposti",
+				role: "Rooli",
+				school: "Oppilaitos",
+				comment: "Kommentti",
+				submit: "Lähetä hakemus",
+				roles: ["Opiskelija", "Valmistunut", "Muu"],
+				schools: ["Helsingin Yliopisto", "Aalto Yliopisto", "Muu"],
+			}
+		: {
+				success: "Application received. We will reply by email.",
+				error: "Check the required fields and email confirmation.",
+				firstName: "First name",
+				lastName: "Last name",
+				email: "Email",
+				confirmEmail: "Confirm email",
+				role: "Role",
+				school: "School",
+				comment: "Comment",
+				submit: "Send application",
+				roles: ["Student", "Alumnus", "Other"],
+				schools: ["University of Helsinki", "Aalto University", "Other"],
+			};
+---
+
+<section class="application-panel">
+	{sent && <p class="form-success">{copy.success}</p>}
+	{error && <p class="form-error">{copy.error}</p>}
+	<form method="POST" action="/api/member-application" class="member-form">
+		<input type="hidden" name="lang" value={lang} />
+		<div class="hp-field" aria-hidden="true">
+			<label for="website">Website</label>
+			<input id="website" type="text" name="website" tabindex="-1" autocomplete="off" />
+		</div>
+
+		<label>
+			<span>{copy.firstName}</span>
+			<input name="firstName" autocomplete="given-name" required />
+		</label>
+		<label>
+			<span>{copy.lastName}</span>
+			<input name="lastName" autocomplete="family-name" required />
+		</label>
+		<label>
+			<span>{copy.email}</span>
+			<input name="email" type="email" autocomplete="email" required />
+		</label>
+		<label>
+			<span>{copy.confirmEmail}</span>
+			<input name="confirmEmail" type="email" autocomplete="email" required />
+		</label>
+		<label>
+			<span>{copy.role}</span>
+			<select name="role" required>
+				{copy.roles.map((role) => <option value={role}>{role}</option>)}
+			</select>
+		</label>
+		<label>
+			<span>{copy.school}</span>
+			<select name="school" required>
+				{copy.schools.map((school) => <option value={school}>{school}</option>)}
+			</select>
+		</label>
+		<label class="full">
+			<span>{copy.comment}</span>
+			<textarea name="comment" rows="5"></textarea>
+		</label>
+		<button type="submit">{copy.submit}</button>
+	</form>
+</section>

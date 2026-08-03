@@ -1,8 +1,8 @@
 ---
 import { getEmDashCollection } from "emdash";
 import { Image } from "emdash/ui";
-import Base from "../layouts/Base.astro";
-import { getReadingTime } from "../utils/reading-time";
+import Base from "../../layouts/Base.astro";
+import { getReadingTime } from "../../utils/reading-time";
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	orderBy: { published_at: "desc" },
@@ -16,9 +16,9 @@ const latestPosts = posts.slice(0, 3);
 
 function formatDate(date: Date | null | undefined) {
 	if (!date) return null;
-	return date.toLocaleDateString("fi-FI", {
+	return date.toLocaleDateString("en-GB", {
 		year: "numeric",
-		month: "numeric",
+		month: "short",
 		day: "numeric",
 	});
 }
@@ -26,20 +26,20 @@ function formatDate(date: Date | null | undefined) {
 
 <Base
 	title="Helsingin Yliopiston Voimailijat"
-	description="Opiskelijoiden voimailuseura Helsingissä."
-	lang="fi"
+	description="Student strength sports club in Helsinki."
+	lang="en"
 >
 	<section class="club-hero">
 		<div class="club-hero-copy">
 			<p class="eyebrow">Helsingin Yliopiston Voimailijat</p>
-			<h1>Opiskelijoiden voimailuseura Helsingissä.</h1>
+			<h1>Student strength sports club in Helsinki.</h1>
 			<p>
-				HYV järjestää matalan kynnyksen voimailukisoja, kokoaa opiskelijoita
-				treenaamaan ja tarjoaa reitin virallisiin voimanostokilpailuihin.
+				HYV organizes approachable strength competitions, brings students
+				together to train, and offers a route to official powerlifting meets.
 			</p>
 			<div class="hero-actions">
-				<a href="/liity-jaseneksi" class="button primary">Liity jäseneksi</a>
-				<a href="/hyv-voimaliiga-saannot" class="button secondary">Voimaliiga</a>
+				<a href="/en/become-a-member" class="button primary">Become a member</a>
+				<a href="/en/rules" class="button secondary">Voimaliiga rules</a>
 			</div>
 		</div>
 		{heroPost?.data.featured_image && (
@@ -50,45 +50,45 @@ function formatDate(date: Date | null | undefined) {
 		)}
 	</section>
 
-	<section class="fact-row home-facts" aria-label="Seuran perustiedot">
+	<section class="fact-row home-facts" aria-label="Club facts">
 		<div class="fact-item">
-			<span>Perustettu</span>
-			<strong>17.3.2010</strong>
+			<span>Founded</span>
+			<strong>17 March 2010</strong>
 		</div>
 		<div class="fact-item">
-			<span>Jäsenmaksu</span>
-			<strong>10 euroa / vuosi</strong>
+			<span>Membership</span>
+			<strong>10 euros / year</strong>
 		</div>
 		<div class="fact-item">
-			<span>Kokeilu</span>
-			<strong>Ensimmäinen kisa maksutta</strong>
+			<span>First try</span>
+			<strong>First competition is free</strong>
 		</div>
 		<div class="fact-item">
-			<span>Lajiliitto</span>
+			<span>Federation</span>
 			<strong>SVNL</strong>
 		</div>
 	</section>
 
 	<section class="club-grid">
-		<a href="/seura" class="feature-link">
-			<span>Seura</span>
-			<strong>Voimailua opiskelijoille ja valmistuneille Helsingissä.</strong>
+		<a href="/en/about" class="feature-link">
+			<span>About</span>
+			<strong>Strength sports for students and alumni in Helsinki.</strong>
 		</a>
-		<a href="/liity-jaseneksi" class="feature-link">
-			<span>Jäseneksi</span>
-			<strong>Lähetä jäsenhakemus ja saat maksuohjeet sähköpostilla.</strong>
+		<a href="/en/become-a-member" class="feature-link">
+			<span>Join</span>
+			<strong>Send an application and receive payment instructions by email.</strong>
 		</a>
-		<a href="/ranking" class="feature-link">
+		<a href="/en/ranking" class="feature-link">
 			<span>Ranking</span>
-			<strong>Katso seuran parhaat tulokset ja IPF-pisteet.</strong>
+			<strong>Browse the club's best totals and IPF points.</strong>
 		</a>
 	</section>
 
 	<section class="latest-section">
 		<header class="section-heading">
-			<p class="eyebrow">Ajankohtaista</p>
-			<h2>Uutiset ja tulokset</h2>
-			<a href="/posts">Kaikki artikkelit</a>
+			<p class="eyebrow">Current</p>
+			<h2>News and results</h2>
+			<a href="/posts">All articles</a>
 		</header>
 		<div class="news-list">
 			{latestPosts.map((post) => (
