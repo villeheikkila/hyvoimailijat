@@ -1,0 +1,106 @@
+---
+import type { MediaValue } from "emdash";
+import { Image } from "emdash/ui";
+import avifManifest from "../data/media-avif-manifest.json";
+
+interface Props {
+	image: MediaValue | string | null | undefined;
+	alt?: string;
+	sizes?: string;
+	priority?: boolean;
+	class?: string;
+	width?: number;
+	height?: number;
+}
+
+type ManifestImage = {
+	source: string;
+	id: string;
+	width: number;
+	height: number;
+	variants: Array<{
+		width: number;
+		path: string;
+		size: number;
+	}>;
+};
+
+const {
+	image,
+	alt,
+	sizes = "100vw",
+	priority = false,
+	class: className,
+	width,
+	height,
+} = Astro.props;
+
+const manifestImages = (avifManifest as { images: ManifestImage[] }).images;
+const imagesBySource = new Map(manifestImages.map((item) => [item.source, item]));
+const imagesById = new Map(manifestImages.map((item) => [item.id, item]));
+
+function mediaKey(value: MediaValue | string | null | undefined): string | null {
+	if (!value) return null;
+	if (typeof value === "string") {
+		const prefix = "/_emdash/api/media/file/";
+		const index = value.indexOf(prefix);
+		return index === -1 ? value.split("/").pop() ?? null : value.slice(index + prefix.length);
+	}
+
+	const storageKey =
+		(typeof value.meta?.storageKey === "string" ? value.meta.storageKey : undefined) ??
+		value.src?.split("/_emdash/api/media/file/").at(1) ??
+		value.id;
+
+	return storageKey || null;
+}
+
+function keyWithoutExtension(key: string): string {
+	const lastSlash = key.lastIndexOf("/");
+	const lastDot = key.lastIndexOf(".");
+	if (lastDot > lastSlash) return key.slice(0, lastDot);
+	return key;
+}
+
+const key = mediaKey(image);
+const manifestImage = key
+	? imagesBySource.get(key) ?? imagesById.get(keyWithoutExtension(key))
+	: null;
+const avifSrcset = manifestImage?.variants
+	.map((variant) => `/_emdash/api/media/file/${variant.path} ${variant.width}w`)
+	.join(", ");
+const fallbackWidth = width ?? manifestImage?.width;
+const fallbackHeight = height ?? manifestImage?.height;
+const loading = priority ? "eager" : "lazy";
+const fetchpriority = priority ? "high" : undefined;
+---
+
+{
+	manifestImage && avifSrcset ? (
+		<picture class:list={["responsive-image", className]}>
+			<source type="image/avif" srcset={avifSrcset} sizes={sizes} />
+			<Image
+				image={image}
+				alt={alt}
+				width={fallbackWidth}
+				height={fallbackHeight}
+				priority={priority}
+				loading={loading}
+				fetchpriority={fetchpriority}
+				decoding="async"
+			/>
+		</picture>
+	) : (
+		<Image
+			image={image}
+			alt={alt}
+			width={fallbackWidth}
+			height={fallbackHeight}
+			priority={priority}
+			loading={loading}
+			fetchpriority={fetchpriority}
+			decoding="async"
+			class={className}
+		/>
+	)
+}

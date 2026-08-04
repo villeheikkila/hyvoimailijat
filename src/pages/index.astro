@@ -1,8 +1,8 @@
 ---
 import { getEmDashCollection } from "emdash";
-import { Image } from "emdash/ui";
 import Base from "../layouts/Base.astro";
 import FeedCard from "../components/FeedCard.astro";
+import ResponsiveImage from "../components/ResponsiveImage.astro";
 import {
 	attachVenues,
 	formatEventDateTimeRange,
@@ -60,7 +60,11 @@ const upcomingEvents = getUpcomingEvents(attachVenues(events, venues)).slice(0, 
 		</div>
 		{heroPost?.data.featured_image && (
 			<a href={`/posts/${heroPost.id}`} class="hero-media">
-				<Image image={heroPost.data.featured_image} priority />
+				<ResponsiveImage
+					image={heroPost.data.featured_image}
+					priority
+					sizes="(max-width: 900px) 100vw, 42vw"
+				/>
 				<span>{heroPost.data.title}</span>
 			</a>
 		)}

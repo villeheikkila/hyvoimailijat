@@ -1,19 +1,60 @@
 ---
 import { PortableText } from "emdash/ui";
-import type { PortableTextBlock } from "emdash";
+import type { MediaValue, PortableTextBlock } from "emdash";
 import { getBlockParts, isInvalidFileBlock } from "../utils/embeds";
 import HyvLogo from "./HyvLogo.astro";
+import ResponsiveImage from "./ResponsiveImage.astro";
 
 interface Props {
 	value?: PortableTextBlock[];
 	replaceImagesWithLogo?: boolean;
+	priorityFirstImage?: boolean;
 }
 
-const { value = [], replaceImagesWithLogo = false } = Astro.props;
+const {
+	value = [],
+	replaceImagesWithLogo = false,
+	priorityFirstImage = false,
+} = Astro.props;
+let didPrioritizeImage = false;
 
 function isImageBlock(block: PortableTextBlock): boolean {
 	const candidate = block as unknown as { _type?: string; type?: string };
 	return candidate._type === "image" || candidate.type === "image";
+}
+
+function imageBlockToMediaValue(block: PortableTextBlock): MediaValue | null {
+	const candidate = block as unknown as {
+		asset?: {
+			_ref?: string;
+			url?: string;
+			meta?: Record<string, unknown>;
+		};
+		alt?: string;
+		width?: number;
+		height?: number;
+	};
+	const url = candidate.asset?.url ?? candidate.asset?._ref;
+	if (!url) return null;
+
+	const localPrefix = "/_emdash/api/media/file/";
+	const localIndex = url.indexOf(localPrefix);
+	const storageKey = localIndex === -1 ? url : url.slice(localIndex + localPrefix.length);
+
+	return {
+		provider: url.startsWith("http") ? "external" : "local",
+		id: storageKey,
+		src: url,
+		alt: candidate.alt,
+		width: candidate.width,
+		height: candidate.height,
+		meta: candidate.asset?.meta,
+	};
+}
+
+function imageCaption(block: PortableTextBlock): string | undefined {
+	const candidate = block as unknown as { caption?: unknown };
+	return typeof candidate.caption === "string" && candidate.caption.trim() ? candidate.caption.trim() : undefined;
 }
 ---
 
@@ -26,6 +67,26 @@ function isImageBlock(block: PortableTextBlock): boolean {
 				<div class="about-content-logo" aria-hidden="true">
 					<HyvLogo class="about-content-logo-img" />
 				</div>
+			);
+		}
+
+		if (isImageBlock(block)) {
+			const image = imageBlockToMediaValue(block);
+			const caption = imageCaption(block);
+			const priority = priorityFirstImage && !didPrioritizeImage;
+			didPrioritizeImage = true;
+			if (!image) return null;
+
+			return (
+				<figure>
+					<ResponsiveImage
+						image={image}
+						alt={image.alt}
+						priority={priority}
+						sizes="(max-width: 900px) 100vw, 680px"
+					/>
+					{caption && <figcaption>{caption}</figcaption>}
+				</figure>
 			);
 		}
 

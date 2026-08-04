@@ -29,11 +29,12 @@ const tagsByEntry = await getTermsForEntries(
 <Base title="Tulokset" description="HYV:n kilpailutulokset ja kisaraportit">
 	<ArchiveShell label="Kilpailut" title="Tulokset" count={`${posts.length} kisaraporttia`}>
 		<FeedGrid>
-			{posts.map((post) => (
+			{posts.map((post, index) => (
 				<FeedCard
 					title={post.data.title}
 					description={post.data.excerpt}
 					image={post.data.featured_image}
+					priorityImage={index === 0}
 					href={`/posts/${post.id}`}
 					meta={getPostFeedMeta(post.data.publishedAt, post.data.content, "fi")}
 					tags={(tagsByEntry.get(post.data.id) ?? []).map((tag) => ({

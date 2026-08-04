@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 const defaultDb =
@@ -7,6 +7,9 @@ const defaultDb =
 const argv = process.argv.slice(2);
 const dbPath = readArg("--db") ?? defaultDb;
 const writeSqlPath = readArg("--write-sql");
+const wordpressXmlPath =
+	readArg("--wordpress-xml") ??
+	(process.env.WORDPRESS_XML || "/Users/villeheikkila/Downloads/helsinginyliopistonvoimailijatry.WordPress.2026-08-03.xml");
 const apply = argv.includes("--apply");
 const help = argv.includes("--help") || argv.includes("-h");
 
@@ -22,6 +25,8 @@ Usage:
 
 Options:
   --db=PATH          Local SQLite D1 database path.
+  --wordpress-xml=PATH
+                     WordPress export XML used to disambiguate duplicate media filenames.
   --write-sql=PATH  Write SQL UPDATE statements for changed rows.
   --apply           Apply generated updates directly to the local database.
 `);
@@ -38,6 +43,8 @@ const contentTargets = [
 
 const wordpressMediaUrlPattern =
 	/https?:\/\/hyvoimailijat\.com\/Wordpress\/wordpress\/wp-content\/uploads\/\d{4}\/\d{2}\/[^\s"'<>\\)]+/gi;
+const wordpressMediaUrlTest =
+	/^https?:\/\/hyvoimailijat\.com\/Wordpress\/wordpress\/wp-content\/uploads\/\d{4}\/\d{2}\/[^\s"'<>\\)]+$/i;
 
 function readArg(name) {
 	const prefix = `${name}=`;
@@ -91,6 +98,16 @@ function mediaKey(filename) {
 	return safeDecode(filename).normalize("NFC").toLocaleLowerCase("fi-FI");
 }
 
+function legacyUrlKey(url) {
+	try {
+		const parsed = new URL(url);
+		return mediaKey(parsed.pathname);
+	} catch {
+		const clean = url.split(/[?#]/, 1)[0];
+		return mediaKey(clean);
+	}
+}
+
 function filenameParts(filename) {
 	const extensionIndex = filename.lastIndexOf(".");
 	if (extensionIndex === -1) return { stem: filename, extension: "" };
@@ -104,14 +121,19 @@ function wordpressFilenameVariants(filename) {
 	const decoded = safeDecode(filename);
 	const variants = new Set([filename, decoded]);
 	const { stem, extension } = filenameParts(decoded);
+	const withoutCopySuffix = stem.replace(/-\d+$/, "");
+	if (withoutCopySuffix !== stem) {
+		variants.add(`${withoutCopySuffix}${extension}`);
+		variants.add(`${withoutCopySuffix}-scaled${extension}`);
+	}
 	const withoutSize = stem.replace(/-\d+x\d+$/, "");
 	if (withoutSize !== stem) {
 		variants.add(`${withoutSize}${extension}`);
 		variants.add(`${withoutSize}-scaled${extension}`);
-		const withoutCopySuffix = withoutSize.replace(/-\d+$/, "");
-		if (withoutCopySuffix !== withoutSize) {
-			variants.add(`${withoutCopySuffix}${extension}`);
-			variants.add(`${withoutCopySuffix}-scaled${extension}`);
+		const sizedWithoutCopySuffix = withoutSize.replace(/-\d+$/, "");
+		if (sizedWithoutCopySuffix !== withoutSize) {
+			variants.add(`${sizedWithoutCopySuffix}${extension}`);
+			variants.add(`${sizedWithoutCopySuffix}-scaled${extension}`);
 		}
 	}
 	const withoutScaled = stem.replace(/-scaled$/, "");
@@ -132,13 +154,68 @@ function uniqueMedia(items) {
 	return unique;
 }
 
+function mediaDimensionKey(filename, width, height) {
+	return `${mediaKey(filename)}:${width}x${height}`;
+}
+
+function extractCdata(source, tagName) {
+	const escaped = tagName.replaceAll(":", "\\:");
+	const match = source.match(new RegExp(`<${escaped}>\\s*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>\\s*</${escaped}>`, "i"));
+	return match?.[1];
+}
+
+function urlWithFilename(baseUrl, filename) {
+	try {
+		const parsed = new URL(baseUrl);
+		const parts = parsed.pathname.split("/");
+		parts[parts.length - 1] = filename;
+		parsed.pathname = parts.join("/");
+		parsed.search = "";
+		parsed.hash = "";
+		return parsed.toString();
+	} catch {
+		return baseUrl;
+	}
+}
+
+function parseAttachmentMetadata(itemXml) {
+	const metadata = [...itemXml.matchAll(/<wp:meta_value>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/wp:meta_value>/gi)]
+		.map((match) => match[1])
+		.find((value) => value.includes("s:5:\"width\"") && value.includes("s:6:\"height\"") && value.includes("s:4:\"file\""));
+	if (!metadata) return undefined;
+
+	const original = metadata.match(/s:5:"width";i:(\d+);s:6:"height";i:(\d+);s:4:"file";s:\d+:"([^"]+)"/);
+	if (!original) return undefined;
+
+	const width = Number(original[1]);
+	const height = Number(original[2]);
+	const file = original[3];
+	const sizeFiles = [...metadata.matchAll(/s:4:"file";s:\d+:"([^"]+)";s:5:"width";i:(\d+);s:6:"height";i:(\d+)/g)].map(
+		(match) => ({
+			file: match[1],
+			width: Number(match[2]),
+			height: Number(match[3]),
+		})
+	);
+
+	return { file, filename: basenameFromUrl(file), width, height, sizeFiles };
+}
+
 function loadMediaIndex() {
 	const media = JSON.parse(
 		runSql(`SELECT id, filename, storage_key FROM media ORDER BY created_at, id;`, {
 			json: true,
 		}) || "[]"
 	);
+	const mediaWithDimensions = JSON.parse(
+		runSql(`SELECT id, filename, storage_key, width, height FROM media ORDER BY created_at, id;`, {
+			json: true,
+		}) || "[]"
+	);
 	const byFilename = new Map();
+	const byFilenameDimensions = new Map();
+	const byDimensions = new Map();
+	const byEditedOriginalStem = new Map();
 
 	for (const item of media) {
 		const keys = new Set();
@@ -151,9 +228,70 @@ function loadMediaIndex() {
 			existing.push(item);
 			byFilename.set(key, existing);
 		}
+
+		const { stem, extension } = filenameParts(item.filename);
+		const editedMatch = stem.match(/^(.+)-e\d+$/);
+		if (editedMatch) {
+			const originalFilename = `${editedMatch[1]}${extension}`;
+			const editedExisting = byEditedOriginalStem.get(mediaKey(originalFilename)) ?? [];
+			editedExisting.push(item);
+			byEditedOriginalStem.set(mediaKey(originalFilename), editedExisting);
+		}
 	}
 
-	return byFilename;
+	for (const item of mediaWithDimensions) {
+		if (!item.width || !item.height) continue;
+		const key = mediaDimensionKey(item.filename, item.width, item.height);
+		const existing = byFilenameDimensions.get(key) ?? [];
+		existing.push(item);
+		byFilenameDimensions.set(key, existing);
+
+		const dimensionsKey = `${item.width}x${item.height}`;
+		const dimensionExisting = byDimensions.get(dimensionsKey) ?? [];
+		dimensionExisting.push(item);
+		byDimensions.set(dimensionsKey, dimensionExisting);
+	}
+
+	return {
+		byFilename,
+		byFilenameDimensions,
+		byDimensions,
+		byEditedOriginalStem,
+		byLegacyUrl: loadLegacyMediaMap(byFilenameDimensions, byDimensions),
+	};
+}
+
+function loadLegacyMediaMap(byFilenameDimensions, byDimensions) {
+	const map = new Map();
+	if (!wordpressXmlPath || !existsSync(wordpressXmlPath)) return map;
+
+	const xml = readFileSync(wordpressXmlPath, "utf8");
+	for (const itemMatch of xml.matchAll(/<item>[\s\S]*?<\/item>/gi)) {
+		const itemXml = itemMatch[0];
+		if (!/<wp:post_type>\s*<!\[CDATA\[attachment\]\]>\s*<\/wp:post_type>/i.test(itemXml)) continue;
+
+		const attachmentUrl = extractCdata(itemXml, "wp:attachment_url");
+		if (!attachmentUrl) continue;
+
+		const metadata = parseAttachmentMetadata(itemXml);
+		if (!metadata) continue;
+
+		const exactCandidates = byFilenameDimensions.get(mediaDimensionKey(metadata.filename, metadata.width, metadata.height)) ?? [];
+		const candidates = exactCandidates.length > 0 ? exactCandidates : (byDimensions.get(`${metadata.width}x${metadata.height}`) ?? []);
+		if (candidates.length !== 1) continue;
+
+		const mediaUrl = `/_emdash/api/media/file/${candidates[0].storage_key}`;
+		const urls = new Set([attachmentUrl, urlWithFilename(attachmentUrl, metadata.filename)]);
+		for (const size of metadata.sizeFiles) {
+			urls.add(urlWithFilename(attachmentUrl, size.file));
+		}
+
+		for (const url of urls) {
+			map.set(legacyUrlKey(url), mediaUrl);
+		}
+	}
+
+	return map;
 }
 
 function loadRows() {
@@ -204,10 +342,23 @@ function collectReferencedMedia(value, refs = new Set()) {
 }
 
 function resolveMediaUrl(url, byFilename, referencedMedia) {
+	const legacyMatch = byFilename.byLegacyUrl?.get(legacyUrlKey(url));
+	if (legacyMatch) return { status: "resolved", basename: basenameFromUrl(url), url: legacyMatch };
+
 	const basename = basenameFromUrl(url);
 	const candidates = uniqueMedia(
-		wordpressFilenameVariants(basename).flatMap((variant) => byFilename.get(mediaKey(variant)) ?? [])
+		wordpressFilenameVariants(basename).flatMap((variant) => byFilename.byFilename.get(mediaKey(variant)) ?? [])
 	);
+	if (candidates.length === 0) {
+		const editedCandidates = uniqueMedia(byFilename.byEditedOriginalStem.get(mediaKey(basename)) ?? []);
+		if (editedCandidates.length === 1) {
+			return {
+				status: "resolved",
+				basename,
+				url: `/_emdash/api/media/file/${editedCandidates[0].storage_key}`,
+			};
+		}
+	}
 	if (candidates.length === 0) return { status: "missing", basename };
 	if (candidates.length === 1) {
 		return { status: "resolved", basename, url: `/_emdash/api/media/file/${candidates[0].storage_key}` };
@@ -250,12 +401,52 @@ function rewriteString(value, context) {
 function rewriteValue(value, context) {
 	if (typeof value === "string") return rewriteString(value, context);
 	if (!value || typeof value !== "object") return value;
-	if (Array.isArray(value)) return value.map((item) => rewriteValue(item, context));
+	if (Array.isArray(value)) {
+		return value
+			.map((item) => rewriteValue(item, context))
+			.filter((item) => item !== null);
+	}
+
+	if (value._type === "image") {
+		const imageUrl = value.asset?._ref ?? value.asset?.url;
+		if (typeof imageUrl === "string" && wordpressMediaUrlTest.test(imageUrl)) {
+			const resolved = resolveMediaUrl(imageUrl, context.byFilename, context.referencedMedia);
+			if (resolved.status !== "resolved") {
+				context.dropped.push({ type: "image", url: imageUrl, status: resolved.status, basename: resolved.basename });
+				return null;
+			}
+		}
+	}
+
+	const droppedMarkKeys = new Set();
+	if (Array.isArray(value.markDefs)) {
+		for (const markDef of value.markDefs) {
+			if (markDef?._type !== "link" || typeof markDef.href !== "string" || !wordpressMediaUrlTest.test(markDef.href)) {
+				continue;
+			}
+			const resolved = resolveMediaUrl(markDef.href, context.byFilename, context.referencedMedia);
+			if (resolved.status !== "resolved") {
+				droppedMarkKeys.add(markDef._key);
+				context.dropped.push({ type: "link", url: markDef.href, status: resolved.status, basename: resolved.basename });
+			}
+		}
+	}
 
 	let changed = false;
 	const next = {};
 	for (const [key, child] of Object.entries(value)) {
-		const rewritten = rewriteValue(child, context);
+		let rewritten = rewriteValue(child, context);
+		if (key === "markDefs" && Array.isArray(rewritten) && droppedMarkKeys.size > 0) {
+			rewritten = rewritten.filter((markDef) => !droppedMarkKeys.has(markDef?._key));
+		}
+		if (key === "children" && Array.isArray(rewritten) && droppedMarkKeys.size > 0) {
+			rewritten = rewritten.map((child) => {
+				if (!Array.isArray(child?.marks)) return child;
+				const marks = child.marks.filter((mark) => !droppedMarkKeys.has(mark));
+				if (marks.length === child.marks.length) return child;
+				return marks.length > 0 ? { ...child, marks } : { ...child, marks: undefined };
+			});
+		}
 		next[key] = rewritten;
 		if (rewritten !== child) changed = true;
 	}
@@ -274,6 +465,7 @@ const stats = {
 	rowsScanned: 0,
 	rowsChanged: 0,
 	urlsRewritten: 0,
+	deadLinksDropped: 0,
 	missingUrls: 0,
 	ambiguousUrls: 0,
 };
@@ -293,13 +485,14 @@ for (const row of loadRows()) {
 	for (const column of row.columns) {
 		const parsed = parsedColumns.get(column);
 		const before = serializeParsed(row[column], parsed);
-		const context = { byFilename, referencedMedia, replacements: [], unresolved };
+		const context = { byFilename, referencedMedia, replacements: [], unresolved, dropped: [] };
 		const rewritten = rewriteValue(parsed, context);
 		const after = serializeParsed(row[column], rewritten);
 		if (after === before) continue;
 
 		stats.rowsChanged += 1;
 		stats.urlsRewritten += context.replacements.length;
+		stats.deadLinksDropped += context.dropped.length;
 		updates.push({
 			table: row.table,
 			column,
@@ -307,6 +500,7 @@ for (const row of loadRows()) {
 			label: row.slug ?? `${row.collection}:${row.entry_id}`,
 			value: after,
 			replacements: context.replacements,
+			dropped: context.dropped,
 		});
 	}
 }
@@ -330,12 +524,13 @@ console.log(
 	JSON.stringify(
 		{
 			...stats,
-			updatedRows: updates.map(({ table, column, id, label, replacements }) => ({
+			updatedRows: updates.map(({ table, column, id, label, replacements, dropped }) => ({
 				table,
 				column,
 				id,
 				label,
 				replacements: replacements.length,
+				dropped: dropped.length,
 			})),
 			unresolved: [...unresolved.values()],
 		},

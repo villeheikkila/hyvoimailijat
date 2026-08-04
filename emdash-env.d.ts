@@ -128,8 +128,8 @@ export interface Venue {
   city?: string;
   country?: string;
   map_url?: string;
-  website_url?: string;
   content?: PortableTextBlock[];
+  website_url?: string;
   legacy_wp_id?: string;
   createdAt: Date;
   updatedAt: Date;

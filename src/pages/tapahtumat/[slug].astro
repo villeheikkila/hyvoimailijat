@@ -1,7 +1,7 @@
 ---
 import { decodeSlug, getEmDashCollection, getEmDashEntry, getSeoMeta } from "emdash";
-import { Image } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
+import ResponsiveImage from "../../components/ResponsiveImage.astro";
 import RichPortableText from "../../components/RichPortableText.astro";
 import {
 	attachVenues,
@@ -112,7 +112,13 @@ const seo = getSeoMeta(event, {
 			</aside>
 
 			<div class="event-detail-body">
-				{event.data.featured_image && <Image image={event.data.featured_image} />}
+				{event.data.featured_image && (
+					<ResponsiveImage
+						image={event.data.featured_image}
+						priority
+						sizes="(max-width: 900px) 100vw, 680px"
+					/>
+				)}
 				{event.data.summary && <p class="event-summary">{event.data.summary}</p>}
 				<RichPortableText value={event.data.content} />
 			</div>
@@ -206,8 +212,12 @@ const seo = getSeoMeta(event, {
 		line-height: var(--leading-relaxed);
 	}
 
-	.event-detail-body > img {
+	.event-detail-body > :global(.responsive-image) {
+		display: block;
 		margin-bottom: var(--spacing-8);
+	}
+
+	.event-detail-body > :global(.responsive-image img) {
 		border-radius: var(--radius-lg);
 	}
 

@@ -1,7 +1,7 @@
 ---
 import type { MediaValue } from "emdash";
-import { Image } from "emdash/ui";
 import type { FeedMetaItem } from "../utils/feed";
+import ResponsiveImage from "./ResponsiveImage.astro";
 
 export type FeedCardVariant = "archive" | "compact" | "row";
 
@@ -17,6 +17,7 @@ interface Props {
 	variant?: FeedCardVariant;
 	description?: string | null;
 	image?: MediaValue | string | null;
+	priorityImage?: boolean;
 	meta?: FeedMetaItem[];
 	tags?: FeedCardTag[];
 }
@@ -27,6 +28,7 @@ const {
 	variant = "archive",
 	description,
 	image,
+	priorityImage = false,
 	meta = [],
 	tags = [],
 } = Astro.props;
@@ -41,7 +43,11 @@ const tagHref = (tag: FeedCardTag) => tag.href ?? `/tag/${tag.slug}`;
 		{
 			image && variant !== "row" && (
 				<div class="feed-card__image">
-					<Image image={image} />
+					<ResponsiveImage
+						image={image}
+						priority={priorityImage}
+						sizes={variant === "compact" ? "(max-width: 700px) 100vw, 180px" : "(max-width: 600px) 100vw, 33vw"}
+					/>
 				</div>
 			)
 		}

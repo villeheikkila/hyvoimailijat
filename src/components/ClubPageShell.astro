@@ -50,7 +50,11 @@ const { copy, lang, content, contentRef, pageKey } = Astro.props;
 		{
 			content && (
 				<div class="rich-content">
-					<RichPortableText value={content} replaceImagesWithLogo={pageKey === "about"} />
+					<RichPortableText
+						value={content}
+						replaceImagesWithLogo={pageKey === "about"}
+						priorityFirstImage
+					/>
 				</div>
 			)
 		}

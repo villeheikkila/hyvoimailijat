@@ -50,11 +50,12 @@ const filteredPosts = posts.map((post) => ({
 				<p class="no-posts">No posts in this category yet.</p>
 			) : (
 				<FeedGrid>
-					{filteredPosts.map(({ post, tags }) => (
+					{filteredPosts.map(({ post, tags }, index) => (
 						<FeedCard
 							title={post.data.title}
 							description={post.data.excerpt}
 							image={post.data.featured_image}
+							priorityImage={index === 0}
 							href={`/posts/${post.id}`}
 							meta={getPostFeedMeta(post.data.publishedAt, post.data.content, "en")}
 							tags={tags.map((t) => ({ slug: t.slug, label: t.label }))}

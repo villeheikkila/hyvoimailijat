@@ -33,11 +33,12 @@ const tagsByEntry = await getTermsForEntries(
 		count={`${posts.length} ${posts.length === 1 ? "report" : "reports"}`}
 	>
 		<FeedGrid>
-			{posts.map((post) => (
+			{posts.map((post, index) => (
 				<FeedCard
 					title={post.data.title}
 					description={post.data.excerpt}
 					image={post.data.featured_image}
+					priorityImage={index === 0}
 					href={`/posts/${post.id}`}
 					meta={getPostFeedMeta(post.data.publishedAt, post.data.content, "en")}
 					tags={(tagsByEntry.get(post.data.id) ?? []).map((tag) => ({
