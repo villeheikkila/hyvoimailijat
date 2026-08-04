@@ -41,6 +41,7 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 <ClubPageShell
 	copy={copy}
 	lang="en"
+	pageKey={pageKey}
 	content={content}
 	contentRef={page ? { collection: "pages", id: page.data.id, slug: copy.cmsSlug } : undefined}
 >

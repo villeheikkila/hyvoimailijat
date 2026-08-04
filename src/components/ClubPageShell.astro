@@ -9,9 +9,10 @@ interface Props {
 	lang: Locale;
 	content?: PortableTextBlock[];
 	contentRef?: { collection: string; id: string; slug?: string | null };
+	pageKey?: string;
 }
 
-const { copy, lang, content, contentRef } = Astro.props;
+const { copy, lang, content, contentRef, pageKey } = Astro.props;
 ---
 
 <Base
@@ -20,7 +21,7 @@ const { copy, lang, content, contentRef } = Astro.props;
 	lang={lang}
 	content={contentRef}
 >
-	<article class="club-page">
+	<article class:list={["club-page", pageKey && `club-page--${pageKey}`]}>
 		<header class="club-page-hero">
 			<p class="eyebrow">{copy.kicker}</p>
 			<h1>{copy.title}</h1>
