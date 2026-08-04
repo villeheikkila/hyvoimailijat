@@ -75,6 +75,7 @@ const nav = menu?.items.length
 const langHref = lang === "fi" ? "/en" : "/";
 const langLabel = lang === "fi" ? "EN" : "FI";
 const langSwitchLabel = lang === "fi" ? "Switch to English" : "Vaihda suomeksi";
+const searchHref = lang === "fi" ? "/search" : "/en/search";
 
 const pageCtx = createPublicPageContext({
 	Astro,
@@ -144,7 +145,7 @@ const isLoggedIn = !!Astro.locals.user;
 					{nav.map((item) => <a href={item.href}>{item.label}</a>)}
 				</div>
 				<div class="nav-actions">
-					<a href="/search" class="nav-search" aria-label={lang === "fi" ? "Hae" : "Search"}>
+					<a href={searchHref} class="nav-search" aria-label={lang === "fi" ? "Hae" : "Search"}>
 						<svg viewBox="0 0 24 24" aria-hidden="true">
 							<path d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"></path>
 						</svg>
