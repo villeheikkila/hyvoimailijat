@@ -1,6 +1,7 @@
 ---
 import { getEmDashCollection, getEmDashEntry, decodeSlug } from "emdash";
 import ClubPageShell from "../components/ClubPageShell.astro";
+import ContactForm from "../components/ContactForm.astro";
 import MemberApplicationForm from "../components/MemberApplicationForm.astro";
 import RankingTables from "../components/RankingTables.astro";
 import { pageCopies } from "../utils/club-pages";
@@ -43,6 +44,7 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 	content={content}
 	contentRef={page ? { collection: "pages", id: page.data.id, slug: copy.cmsSlug } : undefined}
 >
+	{pageKey === "about" && <ContactForm lang="fi" />}
 	{pageKey === "join" && <MemberApplicationForm lang="fi" />}
 	{pageKey === "ranking" && <RankingTables tables={rankingTables as any} />}
 </ClubPageShell>

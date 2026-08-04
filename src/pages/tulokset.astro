@@ -1,10 +1,17 @@
 ---
-import { getEmDashCollection, getTermsForEntries } from "emdash";
-import Base from "../../layouts/Base.astro";
-import PostCard from "../../components/PostCard.astro";
-import { getReadingTime } from "../../utils/reading-time";
+import { getEmDashCollection, getTerm, getTermsForEntries } from "emdash";
+import Base from "../layouts/Base.astro";
+import PostCard from "../components/PostCard.astro";
+import { getReadingTime } from "../utils/reading-time";
+
+const term = await getTerm("category", "tulokset");
+
+if (!term) {
+	return Astro.redirect("/404");
+}
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
+	where: { category: term.slug },
 	orderBy: { published_at: "desc" },
 });
 
@@ -17,12 +24,12 @@ const tagsByEntry = await getTermsForEntries(
 );
 ---
 
-<Base title="Uutiset" description="HYV:n uutiset, artikkelit ja kisaraportit">
+<Base title="Tulokset" description="HYV:n kilpailutulokset ja kisaraportit">
 	<section class="archive-section">
 		<header class="archive-header">
-			<span class="archive-label">Ajankohtaista</span>
-			<h1 class="archive-title">Uutiset</h1>
-			<p class="archive-count">{posts.length} artikkelia</p>
+			<span class="archive-label">Kilpailut</span>
+			<h1 class="archive-title">Tulokset</h1>
+			<p class="archive-count">{posts.length} kisaraporttia</p>
 		</header>
 
 		<div class="posts-grid">

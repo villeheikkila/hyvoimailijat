@@ -8,9 +8,11 @@ interface Props {
 
 const { lang } = Astro.props;
 const FormEmbed = pluginBlockComponents["emdash-form"] as any;
-const formId = lang === "fi" ? "member-application-fi" : "member-application-en";
+const formId = lang === "fi" ? "contact-fi" : "contact-en";
+const heading = lang === "fi" ? "Ota yhteyttä" : "Contact";
 ---
 
 <section class="application-panel">
+	<h2 class="panel-heading">{heading}</h2>
 	{FormEmbed && <FormEmbed node={{ formId }} />}
 </section>

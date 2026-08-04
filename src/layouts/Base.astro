@@ -3,10 +3,10 @@ import {
 	EmDashBodyEnd,
 	EmDashBodyStart,
 	EmDashHead,
-	WidgetArea,
 } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import { Font } from "astro:assets";
+import HyvLogo from "../components/HyvLogo.astro";
 import "../styles/tokens.css";
 import "../styles/theme.css";
 
@@ -42,29 +42,28 @@ const {
 
 const siteTitle = "Helsingin Yliopiston Voimailijat";
 const siteLogoSrc = "/hyv-logo.svg";
-const siteTagline =
-	lang === "fi"
-		? "Opiskelijoiden voimailuseura Helsingissä"
-		: "Student strength sports club in Helsinki";
 const fullTitle = title.includes(siteTitle) ? title : `${title} - ${siteTitle}`;
+const copyright = `© ${new Date().getFullYear()} Helsingin Yliopiston Voimailijat ry`;
 
 const nav =
 	lang === "fi"
 		? [
 				{ href: "/", label: "Etusivu" },
+				{ href: "/posts", label: "Uutiset" },
+				{ href: "/tulokset", label: "Tulokset" },
+				{ href: "/hyv-voimaliiga-saannot", label: "Voimaliiga" },
 				{ href: "/seura", label: "Seura" },
 				{ href: "/liity-jaseneksi", label: "Liity" },
-				{ href: "/hyv-voimaliiga-saannot", label: "Voimaliiga" },
 				{ href: "/ranking", label: "Ranking" },
-				{ href: "/posts", label: "Uutiset" },
 			]
 		: [
 				{ href: "/en", label: "Home" },
+				{ href: "/posts", label: "News" },
+				{ href: "/en/results", label: "Results" },
+				{ href: "/en/rules", label: "Rules" },
 				{ href: "/en/about", label: "About" },
 				{ href: "/en/become-a-member", label: "Join" },
-				{ href: "/en/rules", label: "Rules" },
 				{ href: "/en/ranking", label: "Ranking" },
-				{ href: "/posts", label: "News" },
 			];
 
 const langHref = lang === "fi" ? "/en" : "/";
@@ -116,7 +115,7 @@ const isLoggedIn = !!Astro.locals.user;
 		<header class="site-header">
 			<nav class="nav" aria-label={lang === "fi" ? "Päävalikko" : "Primary"}>
 				<a href={lang === "fi" ? "/" : "/en"} class="site-title">
-					<img src={siteLogoSrc} alt="" class="site-logo-img" />
+					<HyvLogo class="site-logo-img" />
 					<span class="site-name">Helsingin Yliopiston Voimailijat</span>
 				</a>
 				<div class="nav-right">
@@ -125,6 +124,20 @@ const isLoggedIn = !!Astro.locals.user;
 					</div>
 					<a href={langHref} class="lang-switch">{langLabel}</a>
 					{isLoggedIn && <a href="/_emdash/admin" class="nav-admin">Admin</a>}
+					<label class="theme-toggle" aria-label={lang === "fi" ? "Vaihda teemaa" : "Toggle theme"}>
+						<span class="sr-only">{lang === "fi" ? "Vaihda teemaa" : "Toggle theme"}</span>
+						<input type="checkbox" class="theme-toggle-input" aria-label={lang === "fi" ? "Vaihda teemaa" : "Toggle theme"} />
+						<span class="theme-toggle-track" aria-hidden="true">
+							<svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24">
+								<circle cx="12" cy="12" r="3.5"></circle>
+								<path d="M12 2.5v2M12 19.5v2M4.57 4.57l1.42 1.42M18.01 18.01l1.42 1.42M2.5 12h2M19.5 12h2M4.57 19.43l1.42-1.42M18.01 5.99l1.42-1.42"></path>
+							</svg>
+							<span class="theme-toggle-thumb"></span>
+							<svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24">
+								<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+							</svg>
+						</span>
+					</label>
 				</div>
 			</nav>
 		</header>
@@ -136,26 +149,18 @@ const isLoggedIn = !!Astro.locals.user;
 		<footer class="site-footer">
 			<div class="footer-inner">
 				<div class="footer-brand">
-					<a href={lang === "fi" ? "/" : "/en"} class="footer-logo">HYV</a>
-					<p>{siteTagline}</p>
+					<a href={lang === "fi" ? "/" : "/en"} class="footer-logo" aria-label={siteTitle}>
+						<HyvLogo class="footer-logo-img" />
+					</a>
+					<p>{copyright}</p>
 				</div>
-				<nav class="footer-links" aria-label={lang === "fi" ? "Alavalikko" : "Footer"}>
-					{nav.map((item) => <a href={item.href}>{item.label}</a>)}
-					<a href="/rss.xml">RSS</a>
-				</nav>
-				<div class="theme-switcher" aria-label="Theme">
-					<button type="button" class="theme-btn" data-theme="light" aria-label="Light mode">L</button>
-					<button type="button" class="theme-btn" data-theme="dark" aria-label="Dark mode">D</button>
-					<button type="button" class="theme-btn" data-theme="system" aria-label="System theme">A</button>
-				</div>
-				<WidgetArea name="footer" />
 			</div>
 		</footer>
 
 		<script>
 			const THEME_REGEX = /theme=([^;]+)/;
-			const themeBtns =
-				document.querySelectorAll<HTMLButtonElement>(".theme-btn");
+			const themeToggle =
+				document.querySelector<HTMLInputElement>(".theme-toggle-input");
 			const root = document.documentElement;
 
 			function setCookie(name: string, value: string, maxAge = 31536000) {
@@ -167,29 +172,21 @@ const isLoggedIn = !!Astro.locals.user;
 				}
 			}
 
-			function updateActiveBtn(theme: string) {
-				themeBtns.forEach((btn) => {
-					btn.classList.toggle("active", btn.dataset.theme === theme);
-				});
-			}
-
 			function setTheme(theme: string) {
-				if (theme === "system") {
-					setCookie("theme", "");
-					root.classList.remove("light", "dark");
-				} else {
-					setCookie("theme", theme);
-					root.classList.remove("light", "dark");
-					root.classList.add(theme);
-				}
-				updateActiveBtn(theme);
+				setCookie("theme", theme);
+				root.classList.remove("light", "dark");
+				root.classList.add(theme);
+				if (themeToggle) themeToggle.checked = theme === "dark";
 			}
 
 			const match = document.cookie.match(THEME_REGEX);
-			setTheme(match ? match[1] : "system");
-			themeBtns.forEach((btn) => {
-				btn.addEventListener("click", () => setTheme(btn.dataset.theme || "system"));
-			});
+			const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+				? "dark"
+				: "light";
+			setTheme(match && (match[1] === "light" || match[1] === "dark") ? match[1] : systemTheme);
+			themeToggle?.addEventListener("change", () =>
+				setTheme(themeToggle.checked ? "dark" : "light")
+			);
 		</script>
 
 		<EmDashBodyEnd page={pageCtx} />
