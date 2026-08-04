@@ -1,7 +1,7 @@
 ---
 import type { MediaValue } from "emdash";
 import { Image } from "emdash/ui";
-import avifManifest from "../data/media-avif-manifest.json";
+import avifWidthsById from "../data/media-avif-widths.json";
 
 interface Props {
 	image: MediaValue | string | null | undefined;
@@ -13,18 +13,6 @@ interface Props {
 	height?: number;
 }
 
-type ManifestImage = {
-	source: string;
-	id: string;
-	width: number;
-	height: number;
-	variants: Array<{
-		width: number;
-		path: string;
-		size: number;
-	}>;
-};
-
 const {
 	image,
 	alt,
@@ -34,10 +22,6 @@ const {
 	width,
 	height,
 } = Astro.props;
-
-const manifestImages = (avifManifest as { images: ManifestImage[] }).images;
-const imagesBySource = new Map(manifestImages.map((item) => [item.source, item]));
-const imagesById = new Map(manifestImages.map((item) => [item.id, item]));
 
 function mediaKey(value: MediaValue | string | null | undefined): string | null {
 	if (!value) return null;
@@ -55,6 +39,16 @@ function mediaKey(value: MediaValue | string | null | undefined): string | null 
 	return storageKey || null;
 }
 
+function mediaWidth(value: MediaValue | string | null | undefined): number | undefined {
+	if (typeof value === "object" && value?.width) return value.width;
+	return undefined;
+}
+
+function mediaHeight(value: MediaValue | string | null | undefined): number | undefined {
+	if (typeof value === "object" && value?.height) return value.height;
+	return undefined;
+}
+
 function keyWithoutExtension(key: string): string {
 	const lastSlash = key.lastIndexOf("/");
 	const lastDot = key.lastIndexOf(".");
@@ -63,20 +57,23 @@ function keyWithoutExtension(key: string): string {
 }
 
 const key = mediaKey(image);
-const manifestImage = key
-	? imagesBySource.get(key) ?? imagesById.get(keyWithoutExtension(key))
-	: null;
-const avifSrcset = manifestImage?.variants
-	.map((variant) => `/_emdash/api/media/file/${variant.path} ${variant.width}w`)
-	.join(", ");
-const fallbackWidth = width ?? manifestImage?.width;
-const fallbackHeight = height ?? manifestImage?.height;
+const avifId = key ? keyWithoutExtension(key) : null;
+const fallbackWidth = width ?? mediaWidth(image);
+const fallbackHeight = height ?? mediaHeight(image);
+const avifWidths = avifId
+	? (avifWidthsById as Record<string, number[] | undefined>)[avifId]
+	: undefined;
+const avifSrcset = avifId && avifWidths?.length
+	? avifWidths
+		.map((variantWidth) => `/_emdash/api/media/file/derivatives/${avifId}/${variantWidth}.avif ${variantWidth}w`)
+		.join(", ")
+	: undefined;
 const loading = priority ? "eager" : "lazy";
 const fetchpriority = priority ? "high" : undefined;
 ---
 
 {
-	manifestImage && avifSrcset ? (
+	avifSrcset ? (
 		<picture class:list={["responsive-image", className]}>
 			<source type="image/avif" srcset={avifSrcset} sizes={sizes} />
 			<Image
