@@ -1,7 +1,7 @@
 ---
 import { getEmDashEntry, decodeSlug } from "emdash";
-import { PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
+import RichPortableText from "../../components/RichPortableText.astro";
 
 const slug = decodeSlug(Astro.params.slug);
 
@@ -28,7 +28,7 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 		</header>
 
 		<div class="page-content">
-			<PortableText value={page.data.content} />
+			<RichPortableText value={page.data.content} />
 		</div>
 	</article>
 </Base>

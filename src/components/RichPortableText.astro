@@ -1,0 +1,48 @@
+---
+import { PortableText } from "emdash/ui";
+import type { PortableTextBlock } from "emdash";
+import { getBlockParts, isInvalidFileBlock } from "../utils/embeds";
+import HyvLogo from "./HyvLogo.astro";
+
+interface Props {
+	value?: PortableTextBlock[];
+	replaceImagesWithLogo?: boolean;
+}
+
+const { value = [], replaceImagesWithLogo = false } = Astro.props;
+
+function isImageBlock(block: PortableTextBlock): boolean {
+	const candidate = block as unknown as { _type?: string; type?: string };
+	return candidate._type === "image" || candidate.type === "image";
+}
+---
+
+{
+	value.map((block) => {
+		if (isInvalidFileBlock(block)) return null;
+
+		if (replaceImagesWithLogo && isImageBlock(block)) {
+			return (
+				<div class="about-content-logo" aria-hidden="true">
+					<HyvLogo class="about-content-logo-img" />
+				</div>
+			);
+		}
+
+		return getBlockParts(block).map((part) => {
+			if (part.type === "block") return <PortableText value={[part.block]} />;
+
+			return (
+				<div class:list={["rich-embed", `rich-embed--${part.embed.type}`]}>
+					<iframe
+						src={part.embed.url}
+						title={part.embed.title}
+						loading="lazy"
+						allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+						allowfullscreen
+					/>
+				</div>
+			);
+		});
+	})
+}

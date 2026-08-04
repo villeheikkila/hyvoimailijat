@@ -41,7 +41,6 @@ const {
 } = Astro.props;
 
 const siteTitle = "Helsingin Yliopiston Voimailijat";
-const siteLogoSrc = "/hyv-logo.svg";
 const fullTitle = title.includes(siteTitle) ? title : `${title} - ${siteTitle}`;
 const copyright = `© ${new Date().getFullYear()} Helsingin Yliopiston Voimailijat ry`;
 
@@ -138,6 +137,11 @@ const isLoggedIn = !!Astro.locals.user;
 					{nav.map((item) => <a href={item.href}>{item.label}</a>)}
 				</div>
 				<div class="nav-actions">
+					<a href="/search" class="nav-search" aria-label={lang === "fi" ? "Hae" : "Search"}>
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"></path>
+						</svg>
+					</a>
 					<a href={langHref} class="lang-switch" aria-label={langSwitchLabel} title={langSwitchLabel}>
 						<span class="sr-only">{langSwitchLabel}</span>
 						<span aria-hidden="true">{langLabel}</span>
