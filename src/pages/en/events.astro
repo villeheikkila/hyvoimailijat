@@ -1,0 +1,192 @@
+---
+import { getEmDashCollection } from "emdash";
+import Base from "../../layouts/Base.astro";
+import {
+	attachVenues,
+	formatEventDateTimeRange,
+	getEventDate,
+	getEventStatusLabel,
+	getPastEvents,
+	getUpcomingEvents,
+	groupEventsByYear,
+} from "../../utils/events";
+
+const [
+	{ entries: events, cacheHint: eventsCacheHint },
+	{ entries: venues, cacheHint: venuesCacheHint },
+] = await Promise.all([
+	getEmDashCollection("events", {
+		orderBy: { start_at: "desc" },
+		limit: 500,
+	}),
+	getEmDashCollection("venues", {
+		limit: 50,
+	}),
+]);
+
+if (Astro.cache?.enabled) {
+	Astro.cache.set(eventsCacheHint);
+	Astro.cache.set(venuesCacheHint);
+}
+
+const eventsWithVenues = attachVenues(events, venues);
+const upcomingEvents = getUpcomingEvents(eventsWithVenues);
+const pastEventsByYear = groupEventsByYear(getPastEvents(eventsWithVenues));
+---
+
+<Base title="Events" description="HYV competition calendar and event archive" lang="en">
+	<section class="events-page">
+		<header class="archive-header">
+			<span class="archive-label">Competitions</span>
+			<h1 class="archive-title">Events</h1>
+			<p class="archive-count">{events.length} events</p>
+		</header>
+
+		{upcomingEvents.length > 0 && (
+			<section class="events-section">
+				<h2>Upcoming Events</h2>
+				<div class="events-list">
+					{upcomingEvents.map((event) => (
+						<div class="event-row">
+							<a href={`/tapahtumat/${event.id}`} class="event-row-main">
+								<time datetime={getEventDate(event.data.start_at)?.toISOString()}>{formatEventDateTimeRange(event, "en")}</time>
+								<div>
+									<h2>{event.data.title}</h2>
+									<p>
+										{event.venueEntry?.data.title}
+										{event.venueEntry?.data.city ? `, ${event.venueEntry.data.city}` : ""}
+									</p>
+								</div>
+							</a>
+						</div>
+					))}
+				</div>
+			</section>
+		)}
+
+		<section class="events-section">
+			<h2>Archive</h2>
+			<div class="event-years">
+				{pastEventsByYear.map(([year, yearEvents]) => (
+					<section class="event-year">
+						<h3>{year}</h3>
+						<div class="events-list">
+							{yearEvents.map((event) => (
+								<div class="event-row">
+									<a href={`/tapahtumat/${event.id}`} class="event-row-main">
+										<time datetime={getEventDate(event.data.start_at)?.toISOString()}>{formatEventDateTimeRange(event, "en")}</time>
+										<div>
+											<h2>{event.data.title}</h2>
+											<p>
+												{event.venueEntry?.data.title}
+												{event.venueEntry?.data.city ? `, ${event.venueEntry.data.city}` : ""}
+												{event.data.event_status === "cancelled" ? ` / ${getEventStatusLabel(event.data.event_status, "en")}` : ""}
+											</p>
+										</div>
+									</a>
+								</div>
+							))}
+						</div>
+					</section>
+				))}
+			</div>
+		</section>
+	</section>
+</Base>
+
+<style>
+	.events-page {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+		padding: var(--spacing-12) var(--spacing-6) var(--spacing-16);
+	}
+
+	.archive-header {
+		margin-bottom: var(--spacing-10);
+		padding-bottom: var(--spacing-5);
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.archive-label {
+		display: block;
+		margin-bottom: var(--spacing-2);
+		color: var(--color-brand);
+		font-size: var(--font-size-xs);
+		font-weight: 700;
+		letter-spacing: var(--tracking-wider);
+		text-transform: uppercase;
+	}
+
+	.archive-title {
+		margin-bottom: var(--spacing-2);
+		font-size: var(--title-page-compact);
+		font-weight: var(--font-weight-display);
+		letter-spacing: 0;
+	}
+
+	.archive-count {
+		color: var(--color-muted);
+		font-size: var(--font-size-sm);
+	}
+
+	.events-section {
+		display: grid;
+		gap: var(--spacing-5);
+		margin-top: var(--spacing-10);
+	}
+
+	.events-section > h2,
+	.event-year > h3 {
+		font-size: var(--font-size-2xl);
+		font-weight: var(--font-weight-heading);
+	}
+
+	.event-years {
+		display: grid;
+		gap: var(--spacing-10);
+	}
+
+	.event-year {
+		display: grid;
+		gap: var(--spacing-4);
+	}
+
+	.event-row {
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: center;
+		padding: var(--spacing-5);
+	}
+
+	.event-row-main {
+		display: grid;
+		grid-template-columns: minmax(12rem, 0.32fr) minmax(0, 1fr);
+		gap: var(--spacing-2);
+		color: inherit;
+	}
+
+	.event-row-link {
+		align-self: center;
+		border-radius: var(--radius-md);
+		padding: var(--spacing-2) var(--spacing-3);
+		color: var(--color-brand);
+		font-weight: 650;
+	}
+
+	.event-row-link:hover {
+		background: color-mix(in srgb, var(--color-brand) 9%, transparent);
+	}
+
+	@media (max-width: 700px) {
+		.events-page {
+			padding-inline: var(--spacing-4);
+		}
+
+		.event-row {
+			grid-template-columns: 1fr;
+		}
+
+		.event-row-main {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

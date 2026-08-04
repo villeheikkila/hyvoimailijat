@@ -19,6 +19,32 @@ export interface ActionMonitor {
   terms?: Record<string, TaxonomyTerm[]>;
 }
 
+export interface Event {
+  id: string;
+  slug: string | null;
+  status: string;
+  title: string;
+  start_at: string;
+  end_at?: string;
+  timezone?: string;
+  venue?: string;
+  event_status?: string;
+  event_type?: string;
+  summary?: string;
+  content?: PortableTextBlock[];
+  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> };
+  registration_url?: string;
+  results_url?: string;
+  hide_from_upcoming?: boolean;
+  legacy_wp_id?: string;
+  legacy_slug?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  bylines?: ContentBylineCredit[];
+  terms?: Record<string, TaxonomyTerm[]>;
+}
+
 export interface Page {
   id: string;
   slug: string | null;
@@ -42,6 +68,7 @@ export interface Post {
   featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> };
   content?: PortableTextBlock[];
   excerpt?: string;
+  event?: string;
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
@@ -92,13 +119,34 @@ export interface TribeVenue {
   terms?: Record<string, TaxonomyTerm[]>;
 }
 
+export interface Venue {
+  id: string;
+  slug: string | null;
+  status: string;
+  title: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  map_url?: string;
+  website_url?: string;
+  content?: PortableTextBlock[];
+  legacy_wp_id?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  bylines?: ContentBylineCredit[];
+  terms?: Record<string, TaxonomyTerm[]>;
+}
+
 declare module "emdash" {
   interface EmDashCollections {
     action_monitor: ActionMonitor;
+    events: Event;
     pages: Page;
     posts: Post;
     tablepress_table: TablepressTable;
     tribe_events: TribeEvent;
     tribe_venue: TribeVenue;
+    venues: Venue;
   }
 }

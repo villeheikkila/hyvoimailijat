@@ -1,0 +1,256 @@
+---
+import { decodeSlug, getEmDashCollection, getEmDashEntry, getSeoMeta } from "emdash";
+import type { PortableTextBlock } from "emdash";
+import { Image } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+import RichPortableText from "../../components/RichPortableText.astro";
+import {
+	attachVenues,
+	getEventDate,
+	formatEventDateTimeRange,
+	getEventStatusLabel,
+} from "../../utils/events";
+
+type EventDetailData = {
+	id: string;
+	title: string;
+	start_at: Date | string;
+	end_at?: Date | string;
+	event_status?: string;
+	event_type?: string;
+	registration_url?: string;
+	results_url?: string;
+	featured_image?: Parameters<typeof Image>[0]["image"];
+	summary?: string;
+	content?: PortableTextBlock[];
+	publishedAt?: Date | null;
+	updatedAt: Date;
+};
+
+type VenueDetailData = {
+	title: string;
+	address?: string;
+	city?: string;
+	website_url?: string;
+};
+
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.redirect("/404");
+}
+
+const [
+	{ entry: event, cacheHint: eventCacheHint },
+	{ entries: venues, cacheHint: venuesCacheHint },
+	{ entries: posts, cacheHint: postsCacheHint },
+] = await Promise.all([
+	getEmDashEntry("events", slug),
+	getEmDashCollection("venues", {
+		limit: 50,
+	}),
+	getEmDashCollection("posts", {
+		limit: 500,
+	}),
+]);
+
+if (!event) {
+	return Astro.redirect("/404");
+}
+
+if (Astro.cache?.enabled) {
+	Astro.cache.set(eventCacheHint);
+	Astro.cache.set(venuesCacheHint);
+	Astro.cache.set(postsCacheHint);
+}
+
+const [eventWithVenue] = attachVenues([event], venues);
+const venue = eventWithVenue.venueEntry;
+const eventData = event.data as EventDetailData;
+const venueData = venue?.data as VenueDetailData | undefined;
+const eventPosts = posts
+	.filter((post) => (post.data as typeof post.data & { event?: string }).event === eventData.id)
+	.sort((a, b) => (b.data.publishedAt?.getTime() ?? 0) - (a.data.publishedAt?.getTime() ?? 0));
+const seo = getSeoMeta(event, {
+	siteTitle: "Helsingin Yliopiston Voimailijat",
+	siteUrl: Astro.url.origin,
+	path: `/tapahtumat/${slug}`,
+});
+---
+
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	type="article"
+	publishedTime={eventData.publishedAt?.toISOString() ?? null}
+	modifiedTime={eventData.updatedAt.toISOString()}
+	content={{ collection: "events", id: eventData.id, slug }}
+>
+	<article class="event-detail">
+		<header class="event-detail-header">
+			<p class="eyebrow">{getEventStatusLabel(eventData.event_status, "fi")}</p>
+			<h1>{eventData.title}</h1>
+			<p class="event-detail-time">
+				<time datetime={getEventDate(eventData.start_at)?.toISOString()}>{formatEventDateTimeRange(event, "fi")}</time>
+			</p>
+		</header>
+
+		<div class="event-detail-grid">
+			<aside class="event-detail-meta">
+				{venue && (
+					<div>
+						<span>Paikka</span>
+						{venueData?.website_url ? (
+							<a href={venueData.website_url} class="venue-link" target="_blank" rel="noreferrer">
+								<strong>{venueData.title}</strong>
+							</a>
+						) : (
+							<strong>{venueData?.title}</strong>
+						)}
+						<p>
+							{venueData?.address}
+							{venueData?.city ? <><br />{venueData.city}</> : null}
+						</p>
+					</div>
+				)}
+				{eventData.event_type && (
+					<div>
+						<span>Laji</span>
+						<strong>{eventData.event_type}</strong>
+					</div>
+				)}
+				{eventData.registration_url && (
+					<a href={eventData.registration_url} class="button primary">Ilmoittaudu</a>
+				)}
+				{eventPosts.length > 0 ? (
+					<div class="event-detail-posts">
+						<span>Kisaraportit</span>
+						{eventPosts.map((post) => (
+							<a href={`/posts/${post.id}`}>{post.data.title}</a>
+						))}
+					</div>
+				) : eventData.results_url ? (
+					<a href={eventData.results_url} class="button secondary">Tulokset</a>
+				) : null}
+			</aside>
+
+			<div class="event-detail-body">
+				{eventData.featured_image && <Image image={eventData.featured_image} />}
+				{eventData.summary && <p class="event-summary">{eventData.summary}</p>}
+				<RichPortableText value={eventData.content} />
+			</div>
+		</div>
+	</article>
+</Base>
+
+<style>
+	.event-detail {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+		padding: var(--spacing-12) var(--spacing-6) var(--spacing-16);
+	}
+
+	.event-detail-header {
+		max-width: var(--content-width);
+		margin-bottom: var(--spacing-10);
+		padding-bottom: var(--spacing-5);
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.event-detail-header h1 {
+		margin-top: var(--spacing-2);
+		font-size: var(--title-page-compact);
+		font-weight: var(--font-weight-display);
+	}
+
+	.event-detail-time {
+		margin-top: var(--spacing-4);
+		color: var(--color-text-secondary);
+		font-size: var(--font-size-lg);
+	}
+
+	.event-detail-grid {
+		display: grid;
+		grid-template-columns: 260px minmax(0, var(--content-width));
+		gap: var(--spacing-10);
+		align-items: start;
+	}
+
+	.event-detail-meta {
+		display: grid;
+		gap: var(--spacing-5);
+		padding: var(--spacing-5);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+	}
+
+	.event-detail-meta span {
+		display: block;
+		margin-bottom: var(--spacing-1);
+		color: var(--color-muted);
+		font-size: var(--font-size-sm);
+		font-weight: 650;
+	}
+
+	.event-detail-meta p {
+		margin-top: var(--spacing-1);
+		color: var(--color-text-secondary);
+	}
+
+	.venue-link {
+		display: inline-flex;
+		color: var(--color-text);
+		text-decoration-color: color-mix(in srgb, var(--color-brand) 45%, transparent);
+		text-underline-offset: 0.18em;
+	}
+
+	.venue-link:hover {
+		color: var(--color-brand-hover);
+	}
+
+	.event-detail-posts {
+		display: grid;
+		gap: var(--spacing-2);
+	}
+
+	.event-detail-posts a {
+		color: var(--color-brand);
+		font-weight: 650;
+		line-height: var(--leading-snug);
+	}
+
+	.event-detail-posts a:hover {
+		color: var(--color-brand-hover);
+	}
+
+	.event-detail-body {
+		font-size: var(--font-size-lg);
+		line-height: var(--leading-relaxed);
+	}
+
+	.event-detail-body > img {
+		margin-bottom: var(--spacing-8);
+		border-radius: var(--radius-lg);
+	}
+
+	.event-summary {
+		margin-bottom: var(--spacing-8);
+		color: var(--color-text-secondary);
+		font-size: var(--font-size-xl);
+		line-height: var(--leading-relaxed);
+	}
+
+	@media (max-width: 900px) {
+		.event-detail {
+			padding-inline: var(--spacing-4);
+		}
+
+		.event-detail-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

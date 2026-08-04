@@ -2,17 +2,41 @@
 import { getEmDashCollection } from "emdash";
 import { Image } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
+import {
+	attachVenues,
+	formatEventDateTimeRange,
+	getEventDate,
+	getUpcomingEvents,
+} from "../../utils/events";
 import { getReadingTime } from "../../utils/reading-time";
 
-const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
-	orderBy: { published_at: "desc" },
-	limit: 10,
-});
+const [
+	{ entries: posts, cacheHint: postsCacheHint },
+	{ entries: events, cacheHint: eventsCacheHint },
+	{ entries: venues, cacheHint: venuesCacheHint },
+] = await Promise.all([
+	getEmDashCollection("posts", {
+		orderBy: { published_at: "desc" },
+		limit: 10,
+	}),
+	getEmDashCollection("events", {
+		orderBy: { start_at: "asc" },
+		limit: 100,
+	}),
+	getEmDashCollection("venues", {
+		limit: 50,
+	}),
+]);
 
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) {
+	Astro.cache.set(postsCacheHint);
+	Astro.cache.set(eventsCacheHint);
+	Astro.cache.set(venuesCacheHint);
+}
 
 const heroPost = posts.find((post) => post.data.featured_image);
 const latestPosts = posts.slice(0, 10);
+const upcomingEvents = getUpcomingEvents(attachVenues(events, venues)).slice(0, 3);
 
 function formatDate(date: Date | null | undefined) {
 	if (!date) return null;
@@ -67,6 +91,27 @@ function formatDate(date: Date | null | undefined) {
 			<strong>SVNL</strong>
 		</div>
 	</section>
+
+	{upcomingEvents.length > 0 && (
+		<section class="home-events">
+			<header class="section-heading">
+				<p class="eyebrow">Upcoming events</p>
+				<h2>Calendar</h2>
+				<a href="/en/events">All events</a>
+			</header>
+			<div class="home-events-list">
+				{upcomingEvents.map((event) => (
+					<a href={`/tapahtumat/${event.id}`} class="event-card">
+						<time datetime={getEventDate(event.data.start_at)?.toISOString()}>
+							{formatEventDateTimeRange(event, "en")}
+						</time>
+						<h3>{event.data.title}</h3>
+						{event.venueEntry && <p>{event.venueEntry.data.title}</p>}
+					</a>
+				))}
+			</div>
+		</section>
+	)}
 
 	<section class="latest-section">
 		<header class="section-heading">

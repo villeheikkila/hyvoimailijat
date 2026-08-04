@@ -41,6 +41,12 @@
 					"slug": "excerpt",
 					"label": "Excerpt",
 					"type": "text"
+				},
+				{
+					"slug": "event",
+					"label": "Event",
+					"type": "reference",
+					"collection": "events"
 				}
 			]
 		},
@@ -63,6 +69,150 @@
 					"label": "Content",
 					"type": "portableText",
 					"searchable": true
+				}
+			]
+		},
+		{
+			"slug": "venues",
+			"label": "Venues",
+			"labelSingular": "Venue",
+			"supports": ["drafts", "revisions", "search"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "address",
+					"label": "Address",
+					"type": "string",
+					"searchable": true
+				},
+				{
+					"slug": "city",
+					"label": "City",
+					"type": "string",
+					"searchable": true
+				},
+				{
+					"slug": "country",
+					"label": "Country",
+					"type": "string"
+				},
+				{
+					"slug": "map_url",
+					"label": "Map URL",
+					"type": "string"
+				},
+				{
+					"slug": "website_url",
+					"label": "Website URL",
+					"type": "string"
+				},
+				{
+					"slug": "content",
+					"label": "Content",
+					"type": "portableText",
+					"searchable": true
+				},
+				{
+					"slug": "legacy_wp_id",
+					"label": "Legacy WordPress ID",
+					"type": "string"
+				}
+			]
+		},
+		{
+			"slug": "events",
+			"label": "Events",
+			"labelSingular": "Event",
+			"urlPattern": "/tapahtumat/{slug}",
+			"supports": ["drafts", "revisions", "search", "seo"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "start_at",
+					"label": "Start Time",
+					"type": "datetime",
+					"required": true
+				},
+				{
+					"slug": "end_at",
+					"label": "End Time",
+					"type": "datetime"
+				},
+				{
+					"slug": "timezone",
+					"label": "Timezone",
+					"type": "string"
+				},
+				{
+					"slug": "venue",
+					"label": "Venue",
+					"type": "reference",
+					"collection": "venues"
+				},
+				{
+					"slug": "event_status",
+					"label": "Event Status",
+					"type": "string"
+				},
+				{
+					"slug": "event_type",
+					"label": "Event Type",
+					"type": "string",
+					"searchable": true
+				},
+				{
+					"slug": "summary",
+					"label": "Summary",
+					"type": "text",
+					"searchable": true
+				},
+				{
+					"slug": "content",
+					"label": "Content",
+					"type": "portableText",
+					"searchable": true
+				},
+				{
+					"slug": "featured_image",
+					"label": "Featured Image",
+					"type": "image"
+				},
+				{
+					"slug": "registration_url",
+					"label": "Registration URL",
+					"type": "string"
+				},
+				{
+					"slug": "results_url",
+					"label": "Results URL",
+					"type": "string"
+				},
+				{
+					"slug": "hide_from_upcoming",
+					"label": "Hide from upcoming lists",
+					"type": "boolean"
+				},
+				{
+					"slug": "legacy_wp_id",
+					"label": "Legacy WordPress ID",
+					"type": "string"
+				},
+				{
+					"slug": "legacy_slug",
+					"label": "Legacy Slug",
+					"type": "string"
 				}
 			]
 		}
@@ -145,6 +295,11 @@
 				},
 				{
 					"type": "custom",
+					"label": "Tapahtumat",
+					"url": "/tapahtumat"
+				},
+				{
+					"type": "custom",
 					"label": "Tulokset",
 					"url": "/tulokset"
 				},
@@ -183,6 +338,11 @@
 					"type": "custom",
 					"label": "News",
 					"url": "/posts"
+				},
+				{
+					"type": "custom",
+					"label": "Events",
+					"url": "/en/events"
 				},
 				{
 					"type": "custom",
