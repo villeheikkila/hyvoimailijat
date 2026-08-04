@@ -23,6 +23,7 @@
 		radial-gradient(1100px 720px at 70% 112%, color-mix(in srgb, var(--color-logo-blue) 7%, transparent), transparent 62%);
 	--wide-width: 1180px;
 	--max-width: 860px;
+	--layout-margin: calc(var(--spacing-6) + 2px);
 	--radius: 12px;
 	--radius-lg: 16px;
 	--title-page: clamp(2rem, 4vw, 3.25rem);
@@ -162,7 +163,10 @@ h3 {
 	position: sticky;
 	top: var(--spacing-4);
 	z-index: 100;
-	width: min(90%, var(--wide-width));
+	width: min(
+		calc(100% - (var(--layout-margin) * 2)),
+		calc(var(--wide-width) - (var(--layout-margin) * 2))
+	);
 	margin: var(--spacing-8) auto 0;
 	border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
 	border-radius: var(--radius-lg);
@@ -412,7 +416,7 @@ main {
 	gap: var(--spacing-4);
 	max-width: var(--wide-width);
 	margin: 0 auto;
-	padding: var(--spacing-6);
+	padding: var(--spacing-6) var(--layout-margin);
 }
 
 .footer-brand {
@@ -536,7 +540,7 @@ main {
 .club-page {
 	max-width: var(--wide-width);
 	margin: 0 auto;
-	padding: var(--spacing-12) var(--spacing-6);
+	padding: var(--spacing-12) var(--layout-margin);
 }
 
 .club-hero {
@@ -661,7 +665,7 @@ main {
 	gap: var(--spacing-3);
 	max-width: var(--wide-width);
 	margin: 0 auto;
-	padding: 0 var(--spacing-6);
+	padding: 0 var(--layout-margin);
 }
 
 .home-facts {
@@ -696,13 +700,13 @@ main {
 .latest-section {
 	max-width: var(--wide-width);
 	margin: 0 auto;
-	padding: var(--spacing-8) var(--spacing-6) var(--spacing-16);
+	padding: var(--spacing-8) var(--layout-margin) var(--spacing-16);
 }
 
 .home-events {
 	max-width: var(--wide-width);
 	margin: 0 auto;
-	padding: var(--spacing-8) var(--spacing-6);
+	padding: var(--spacing-8) var(--layout-margin);
 }
 
 .home-events-list,
@@ -1172,7 +1176,6 @@ tr:last-child td {
 
 @media (max-width: 900px) {
 	.site-header {
-		width: calc(100% - var(--spacing-8));
 		margin-top: var(--spacing-4);
 	}
 
@@ -1216,8 +1219,11 @@ tr:last-child td {
 }
 
 @media (max-width: 640px) {
+	:root {
+		--layout-margin: calc(var(--spacing-4) + 2px);
+	}
+
 	.site-header {
-		width: calc(100% - var(--spacing-4));
 		top: var(--spacing-2);
 	}
 
@@ -1243,11 +1249,11 @@ tr:last-child td {
 	.club-page,
 	.home-events,
 	.latest-section {
-		padding-inline: var(--spacing-4);
+		padding-inline: var(--layout-margin);
 	}
 
 	.fact-row {
-		padding-inline: var(--spacing-4);
+		padding-inline: var(--layout-margin);
 	}
 
 	.ec-form-page,
