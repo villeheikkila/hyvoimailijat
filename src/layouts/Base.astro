@@ -4,6 +4,7 @@ import {
 	EmDashBodyStart,
 	EmDashHead,
 } from "emdash/ui";
+import { getMenu } from "emdash";
 import { createPublicPageContext } from "emdash/page";
 import { Font } from "astro:assets";
 import HyvLogo from "../components/HyvLogo.astro";
@@ -44,7 +45,7 @@ const siteTitle = "Helsingin Yliopiston Voimailijat";
 const fullTitle = title.includes(siteTitle) ? title : `${title} - ${siteTitle}`;
 const copyright = `© ${new Date().getFullYear()} Helsingin Yliopiston Voimailijat ry`;
 
-const nav =
+const fallbackNav =
 	lang === "fi"
 		? [
 				{ href: "/", label: "Etusivu" },
@@ -64,6 +65,12 @@ const nav =
 				{ href: "/en/become-a-member", label: "Join" },
 				{ href: "/en/ranking", label: "Ranking" },
 			];
+
+const menuName = lang === "fi" ? "primary-fi" : "primary-en";
+const menu = await getMenu(menuName, { locale: lang });
+const nav = menu?.items.length
+	? menu.items.map((item) => ({ href: item.url, label: item.label }))
+	: fallbackNav;
 
 const langHref = lang === "fi" ? "/en" : "/";
 const langLabel = lang === "fi" ? "EN" : "FI";

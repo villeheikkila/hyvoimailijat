@@ -15,6 +15,7 @@
 			"slug": "posts",
 			"label": "Posts",
 			"labelSingular": "Post",
+			"urlPattern": "/posts/{slug}",
 			"supports": ["drafts", "revisions", "search", "seo"],
 			"commentsEnabled": true,
 			"fields": [
@@ -47,7 +48,8 @@
 			"slug": "pages",
 			"label": "Pages",
 			"labelSingular": "Page",
-			"supports": ["drafts", "revisions", "search"],
+			"urlPattern": "/pages/{slug}",
+			"supports": ["drafts", "revisions", "search", "seo"],
 			"fields": [
 				{
 					"slug": "title",
@@ -128,23 +130,84 @@
 	],
 	"menus": [
 		{
-			"name": "primary",
-			"label": "Primary Navigation",
+			"name": "primary-fi",
+			"label": "Primary Navigation (Finnish)",
 			"items": [
 				{
 					"type": "custom",
-					"label": "Home",
+					"label": "Etusivu",
 					"url": "/"
 				},
 				{
 					"type": "custom",
-					"label": "About",
-					"url": "/pages/about"
+					"label": "Uutiset",
+					"url": "/posts"
 				},
 				{
 					"type": "custom",
-					"label": "Posts",
+					"label": "Tulokset",
+					"url": "/tulokset"
+				},
+				{
+					"type": "custom",
+					"label": "Voimaliiga",
+					"url": "/hyv-voimaliiga-saannot"
+				},
+				{
+					"type": "custom",
+					"label": "Seura",
+					"url": "/seura"
+				},
+				{
+					"type": "custom",
+					"label": "Liity",
+					"url": "/liity-jaseneksi"
+				},
+				{
+					"type": "custom",
+					"label": "Ranking",
+					"url": "/ranking"
+				}
+			]
+		},
+		{
+			"name": "primary-en",
+			"label": "Primary Navigation (English)",
+			"items": [
+				{
+					"type": "custom",
+					"label": "Home",
+					"url": "/en"
+				},
+				{
+					"type": "custom",
+					"label": "News",
 					"url": "/posts"
+				},
+				{
+					"type": "custom",
+					"label": "Results",
+					"url": "/en/results"
+				},
+				{
+					"type": "custom",
+					"label": "Rules",
+					"url": "/en/rules"
+				},
+				{
+					"type": "custom",
+					"label": "About",
+					"url": "/en/about"
+				},
+				{
+					"type": "custom",
+					"label": "Join",
+					"url": "/en/become-a-member"
+				},
+				{
+					"type": "custom",
+					"label": "Ranking",
+					"url": "/en/ranking"
 				}
 			]
 		}
