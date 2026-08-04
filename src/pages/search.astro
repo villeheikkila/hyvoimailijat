@@ -1,45 +1,158 @@
 ---
 export const prerender = false;
 
-import { search } from "emdash";
+import type { PortableTextBlock } from "emdash";
+import { getEmDashCollection } from "emdash";
 import Base from "../layouts/Base.astro";
+import { getPlainText } from "../utils/club-pages";
 
 const query = Astro.url.searchParams.get("q")?.trim() || "";
 
-// Use the FTS-backed search() API instead of loading every post and
-// filtering in JS. FTS scales as the post count grows, returns ranked
-// results, and handles tokenization/stemming. Templates that grep all
-// post bodies in JS quickly become unusable past a few hundred posts.
-const { items: results } = query
-	? await search(query, { collections: ["posts"], limit: 30 })
-	: { items: [] };
+type SearchResult = {
+	title: string;
+	href: string;
+	snippet: string;
+	score: number;
+};
+
+const pageRoutes: Record<string, string> = {
+	seura: "/seura",
+	"liity-jaseneksi": "/liity-jaseneksi",
+	"hyv-voimaliiga-saannot": "/hyv-voimaliiga-saannot",
+	ranking: "/ranking",
+};
+
+const normalize = (value: string) =>
+	value
+		.toLocaleLowerCase("fi-FI")
+		.normalize("NFD")
+		.replace(/\p{Diacritic}/gu, "");
+
+function makeSnippet(text: string, term: string) {
+	const clean = text.replace(/\s+/g, " ").trim();
+	if (!clean) return "";
+
+	const normalizedText = normalize(clean);
+	const normalizedTerm = normalize(term);
+	const index = normalizedText.indexOf(normalizedTerm);
+	const start = index === -1 ? 0 : Math.max(0, index - 80);
+	const end = Math.min(clean.length, start + 220);
+	const prefix = start > 0 ? "..." : "";
+	const suffix = end < clean.length ? "..." : "";
+	const excerpt = `${prefix}${clean.slice(start, end)}${suffix}`;
+
+	return escapeHtml(excerpt).replace(
+		new RegExp(escapeRegExp(term), "giu"),
+		(match) => `<mark>${match}</mark>`
+	);
+}
+
+function escapeHtml(value: string) {
+	return value
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&#39;");
+}
+
+function escapeRegExp(value: string) {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function scoreResult(title: string, body: string, term: string) {
+	const normalizedTitle = normalize(title);
+	const normalizedBody = normalize(body);
+	const normalizedTerm = normalize(term);
+	let score = 0;
+	if (normalizedTitle.includes(normalizedTerm)) score += 10;
+	if (normalizedTitle.startsWith(normalizedTerm)) score += 5;
+	if (normalizedBody.includes(normalizedTerm)) score += 1;
+	return score;
+}
+
+let results: SearchResult[] = [];
+
+if (query) {
+	const [{ entries: posts, cacheHint: postsCache }, { entries: pages, cacheHint: pagesCache }] =
+		await Promise.all([
+			getEmDashCollection("posts", {
+				orderBy: { published_at: "desc" },
+				limit: 500,
+			}),
+			getEmDashCollection("pages", {
+				orderBy: { updated_at: "desc" },
+				limit: 200,
+			}),
+		]);
+
+	if (Astro.cache?.enabled) {
+		Astro.cache.set(postsCache);
+		Astro.cache.set(pagesCache);
+	}
+
+	const postResults = posts.map((post): SearchResult | null => {
+		const contentText = getPlainText(post.data.content as PortableTextBlock[]);
+		const searchableText = `${post.data.title} ${post.data.excerpt ?? ""} ${contentText}`;
+		const score = scoreResult(post.data.title, searchableText, query);
+		if (score === 0) return null;
+
+		return {
+			title: post.data.title,
+			href: `/posts/${post.id}`,
+			snippet: makeSnippet(post.data.excerpt || contentText, query),
+			score,
+		};
+	});
+
+	const pageResults = pages.map((page): SearchResult | null => {
+		const contentText = getPlainText(page.data.content as PortableTextBlock[]);
+		const searchableText = `${page.data.title} ${contentText}`;
+		const score = scoreResult(page.data.title, searchableText, query);
+		if (score === 0) return null;
+
+		return {
+			title: page.data.title,
+			href: pageRoutes[page.id] ?? `/pages/${page.id}`,
+			snippet: makeSnippet(contentText, query),
+			score,
+		};
+	});
+
+	results = [...postResults, ...pageResults]
+		.filter((result): result is SearchResult => result !== null)
+		.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, "fi-FI"))
+		.slice(0, 30);
+}
 ---
 
 <Base
-	title={query ? `Search: ${query}` : "Search"}
-	description="Search blog posts"
+	title={query ? `Haku: ${query}` : "Haku"}
+	description="Hae sivuston artikkeleista"
 >
 	<section class="search-page">
-		<h1 class="search-title">Search</h1>
+		<header class="search-header">
+			<h1 class="search-title">Haku</h1>
+		</header>
 
 		<form method="get" action="/search" class="search-form">
 			<input
 				type="search"
 				name="q"
 				value={query}
-				placeholder="Search posts..."
+				placeholder="Hae artikkeleista..."
 				class="search-input"
 				autofocus
 			/>
-			<button type="submit" class="search-button">Search</button>
+			<button type="submit" class="search-button">Hae</button>
 		</form>
 
 		{
 			query && (
 				<p class="search-summary">
 					{results.length === 0
-						? `No results for "${query}"`
-						: `${results.length} result${results.length === 1 ? "" : "s"} for "${query}"`}
+						? `Ei tuloksia haulle "${query}"`
+						: `${results.length} ${results.length === 1 ? "tulos" : "tulosta"} haulle "${query}"`}
 				</p>
 			)
 		}
@@ -50,11 +163,11 @@ const { items: results } = query
 					{results.map((result) => (
 						<li class="search-result">
 							<a
-								href={`/posts/${result.slug ?? result.id}`}
+								href={result.href}
 								class="result-link"
 							>
 								<h2 class="result-title">
-									{result.title ?? "Untitled"}
+									{result.title}
 								</h2>
 								{result.snippet && (
 									<p class="result-snippet" set:html={result.snippet} />
@@ -66,7 +179,7 @@ const { items: results } = query
 			)
 		}
 
-		{!query && <p class="search-hint">Enter a search term to find posts.</p>}
+		{!query && <p class="search-hint">Kirjoita hakusana löytääksesi artikkeleita.</p>}
 	</section>
 </Base>
 
@@ -74,12 +187,20 @@ const { items: results } = query
 	.search-page {
 		max-width: var(--max-width);
 		margin: 0 auto;
-		padding: var(--spacing-8) var(--spacing-6) var(--spacing-16);
+		padding: var(--spacing-12) var(--spacing-6) var(--spacing-16);
+	}
+
+	.search-header {
+		margin-bottom: var(--spacing-8);
+		padding-bottom: var(--spacing-5);
+		border-bottom: 1px solid var(--color-border-subtle);
 	}
 
 	.search-title {
-		font-size: var(--font-size-2xl);
-		margin-bottom: var(--spacing-6);
+		font-size: var(--title-page-compact);
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-tight);
+		letter-spacing: 0;
 	}
 
 	.search-form {
