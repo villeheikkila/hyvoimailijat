@@ -149,6 +149,9 @@ if (query) {
 	});
 
 	const pageResults = pages.map((page): SearchResult | null => {
+		const href = pageRoutes[lang][page.id];
+		if (!href) return null;
+
 		const contentText = getPlainText(page.data.content as PortableTextBlock[]);
 		const searchableText = `${page.data.title} ${contentText}`;
 		const score = scoreResult(page.data.title, searchableText, query);
@@ -156,7 +159,7 @@ if (query) {
 
 		return {
 			title: page.data.title,
-			href: pageRoutes[lang][page.id] ?? `/${lang === "en" ? "en/" : ""}pages/${page.id}`,
+			href,
 			snippet: makeSnippet(contentText, query),
 			score,
 		};
@@ -172,6 +175,7 @@ if (query) {
 <Base
 	title={query ? `${copy.title}: ${query}` : copy.title}
 	description={copy.description}
+	robots="noindex,follow"
 	lang={lang}
 >
 	<section class="search-page">

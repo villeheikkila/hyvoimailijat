@@ -24,6 +24,7 @@ interface Props {
 	author?: string | null;
 	lang?: "fi" | "en";
 	content?: { collection: string; id: string; slug?: string | null };
+	alternates?: Array<{ lang: string; href: string }>;
 }
 
 const {
@@ -39,6 +40,7 @@ const {
 	author,
 	lang = Astro.url.pathname.startsWith("/en") ? "en" : "fi",
 	content,
+	alternates,
 } = Astro.props;
 
 const siteTitle = "Helsingin Yliopiston Voimailijat";
@@ -79,6 +81,83 @@ const langLabel = lang === "fi" ? "EN" : "FI";
 const langSwitchLabel = lang === "fi" ? "Switch to English" : "Vaihda suomeksi";
 const searchHref = lang === "fi" ? "/search" : "/en/search";
 
+const routeAlternates: Record<string, Array<{ lang: string; path: string }>> = {
+	"/": [
+		{ lang: "fi", path: "/" },
+		{ lang: "en", path: "/en" },
+	],
+	"/en": [
+		{ lang: "fi", path: "/" },
+		{ lang: "en", path: "/en" },
+	],
+	"/tapahtumat": [
+		{ lang: "fi", path: "/tapahtumat" },
+		{ lang: "en", path: "/en/events" },
+	],
+	"/en/events": [
+		{ lang: "fi", path: "/tapahtumat" },
+		{ lang: "en", path: "/en/events" },
+	],
+	"/tulokset": [
+		{ lang: "fi", path: "/tulokset" },
+		{ lang: "en", path: "/en/results" },
+	],
+	"/en/results": [
+		{ lang: "fi", path: "/tulokset" },
+		{ lang: "en", path: "/en/results" },
+	],
+	"/hyv-voimaliiga-saannot": [
+		{ lang: "fi", path: "/hyv-voimaliiga-saannot" },
+		{ lang: "en", path: "/en/rules" },
+	],
+	"/en/rules": [
+		{ lang: "fi", path: "/hyv-voimaliiga-saannot" },
+		{ lang: "en", path: "/en/rules" },
+	],
+	"/seura": [
+		{ lang: "fi", path: "/seura" },
+		{ lang: "en", path: "/en/about" },
+	],
+	"/en/about": [
+		{ lang: "fi", path: "/seura" },
+		{ lang: "en", path: "/en/about" },
+	],
+	"/liity-jaseneksi": [
+		{ lang: "fi", path: "/liity-jaseneksi" },
+		{ lang: "en", path: "/en/become-a-member" },
+	],
+	"/en/become-a-member": [
+		{ lang: "fi", path: "/liity-jaseneksi" },
+		{ lang: "en", path: "/en/become-a-member" },
+	],
+	"/ranking": [
+		{ lang: "fi", path: "/ranking" },
+		{ lang: "en", path: "/en/ranking" },
+	],
+	"/en/ranking": [
+		{ lang: "fi", path: "/ranking" },
+		{ lang: "en", path: "/en/ranking" },
+	],
+	"/search": [
+		{ lang: "fi", path: "/search" },
+		{ lang: "en", path: "/en/search" },
+	],
+	"/en/search": [
+		{ lang: "fi", path: "/search" },
+		{ lang: "en", path: "/en/search" },
+	],
+};
+
+const pathname = Astro.url.pathname.replace(/\/$/, "") || "/";
+const canonicalUrl = canonical ?? `${Astro.url.origin}${pathname}`;
+const alternateUrls =
+	alternates ??
+	(routeAlternates[pathname]?.map((alternate) => ({
+		lang: alternate.lang,
+		href: `${Astro.url.origin}${alternate.path}`,
+	})) ||
+		[]);
+
 const pageCtx = createPublicPageContext({
 	Astro,
 	kind: content ? "content" : "custom",
@@ -86,7 +165,7 @@ const pageCtx = createPublicPageContext({
 	title: fullTitle,
 	pageTitle: pageTitle ?? title,
 	description,
-	canonical,
+	canonical: canonicalUrl,
 	image,
 	content,
 	seo: { ogImage: image, robots },
@@ -108,6 +187,18 @@ const isLoggedIn = !!Astro.locals.user;
 		<link rel="icon" type="image/svg+xml" href="/hyv-logo.svg" />
 		<link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
 		<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+		{alternateUrls.map((alternate) => (
+			<link rel="alternate" hreflang={alternate.lang} href={alternate.href} />
+		))}
+		{
+			alternateUrls.length > 0 && (
+				<link
+					rel="alternate"
+					hreflang="x-default"
+					href={alternateUrls.find((alternate) => alternate.lang === "fi")?.href ?? alternateUrls[0].href}
+				/>
+			)
+		}
 		<EmDashHead page={pageCtx} />
 		<script is:inline>
 			(function () {
