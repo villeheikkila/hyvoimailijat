@@ -60,7 +60,7 @@ const upcomingEvents = getUpcomingEvents(attachVenues(events, venues)).slice(0, 
 		</div>
 		{heroPost?.data.featured_image && (
 			<a href={`/posts/${heroPost.id}`} class="hero-media">
-				<Image image={heroPost.data.featured_image} />
+				<Image image={heroPost.data.featured_image} priority />
 				<span>{heroPost.data.title}</span>
 			</a>
 		)}

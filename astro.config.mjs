@@ -12,6 +12,9 @@ export default defineConfig({
 	cache: {
 		provider: cacheCloudflare(),
 	},
+	build: {
+		inlineStylesheets: "always",
+	},
 	routeRules: {
 		"/": { maxAge: 60, swr: 3600 },
 		"/en": { maxAge: 60, swr: 3600 },
