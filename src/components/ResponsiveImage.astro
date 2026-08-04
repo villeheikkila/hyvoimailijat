@@ -45,6 +45,13 @@ function mediaKey(value: MediaValue | string | null | undefined): string | null 
 	return storageKey || null;
 }
 
+function mediaSrc(value: MediaValue | string | null | undefined, key: string | null): string | undefined {
+	if (!value) return undefined;
+	if (typeof value === "string") return value;
+	if (value.src) return value.src;
+	return key ? `/_emdash/api/media/file/${key}` : undefined;
+}
+
 function mediaWidth(value: MediaValue | string | null | undefined): number | undefined {
 	if (typeof value === "object" && value?.width) return value.width;
 	return undefined;
@@ -69,6 +76,13 @@ const metadata = avifId
 	: undefined;
 const fallbackWidth = width ?? mediaWidth(image) ?? metadata?.width;
 const fallbackHeight = height ?? mediaHeight(image) ?? metadata?.height;
+const fallbackSrc = mediaSrc(image, key);
+const directLocalImage = !!(
+	fallbackSrc &&
+	fallbackWidth &&
+	fallbackHeight &&
+	(fallbackSrc.startsWith("/") || fallbackSrc.includes("/_emdash/api/media/file/"))
+);
 const avifSrcset = avifId && metadata?.widths.length
 	? metadata.widths
 		.map((variantWidth) => `/_emdash/api/media/file/derivatives/${avifId}/${variantWidth}.avif ${variantWidth}w`)
@@ -79,20 +93,31 @@ const fetchpriority = priority ? "high" : undefined;
 ---
 
 {
-	avifSrcset ? (
+	avifSrcset && directLocalImage ? (
 		<picture class:list={["responsive-image", className]}>
 			<source type="image/avif" srcset={avifSrcset} sizes={sizes} />
-			<Image
-				image={image}
+			<img
+				src={fallbackSrc}
 				alt={alt}
 				width={fallbackWidth}
 				height={fallbackHeight}
-				priority={priority}
 				loading={loading}
 				fetchpriority={fetchpriority}
 				decoding="async"
+				class="emdash-image-media"
 			/>
 		</picture>
+	) : directLocalImage ? (
+		<img
+			src={fallbackSrc}
+			alt={alt}
+			width={fallbackWidth}
+			height={fallbackHeight}
+			loading={loading}
+			fetchpriority={fetchpriority}
+			decoding="async"
+			class:list={["emdash-image-media", className]}
+		/>
 	) : (
 		<Image
 			image={image}
