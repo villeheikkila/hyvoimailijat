@@ -20,6 +20,10 @@ const manifestPath = resolve(
 	root,
 	args.get("manifest") ?? join(outputDir, "manifest.json"),
 );
+const metadataPath = resolve(
+	root,
+	args.get("metadata") ?? "src/data/media-image-metadata.json",
+);
 const widths = (args.get("widths") ?? "320,640,960,1280")
 	.split(",")
 	.map((value) => Number.parseInt(value.trim(), 10))
@@ -44,6 +48,7 @@ Options:
   --input=DIR       Source media directory. Default: .tmp/prod-sync/media
   --output=DIR      Output directory. Default: .tmp/prod-sync/media-avif
   --manifest=FILE   Manifest path. Default: <output>/manifest.json
+  --metadata=FILE   Compact site metadata path. Default: src/data/media-image-metadata.json
   --widths=LIST     Comma-separated target widths. Default: 320,640,960,1280
   --quality=N       AVIF quality passed to ImageMagick. Default: 50
   --limit=N         Process only the first N images.
@@ -243,6 +248,19 @@ for (const sourcePath of sourceImages) {
 if (!dryRun) {
 	mkdirSync(dirname(manifestPath), { recursive: true });
 	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+	const metadata = Object.fromEntries(
+		manifest.images.map((image) => [
+			image.id,
+			{
+				width: image.width,
+				height: image.height,
+				widths: image.variants.map((variant) => variant.width),
+			},
+		]),
+	);
+	mkdirSync(dirname(metadataPath), { recursive: true });
+	writeFileSync(metadataPath, `${JSON.stringify(metadata)}\n`);
 }
 
 console.log(`Generated ${generatedCount} derivatives; skipped ${skippedCount} existing derivatives.`);
@@ -252,3 +270,4 @@ if (originalBytes > 0 && derivativeBytes > 0) {
 	console.log(`Derivative/source ratio: ${((derivativeBytes / originalBytes) * 100).toFixed(1)}%`);
 }
 console.log(`Manifest: ${relative(root, manifestPath)}`);
+console.log(`Metadata: ${relative(root, metadataPath)}`);

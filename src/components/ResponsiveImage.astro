@@ -1,7 +1,7 @@
 ---
 import type { MediaValue } from "emdash";
 import { Image } from "emdash/ui";
-import avifWidthsById from "../data/media-avif-widths.json";
+import mediaImageMetadata from "../data/media-image-metadata.json";
 
 interface Props {
 	image: MediaValue | string | null | undefined;
@@ -12,6 +12,12 @@ interface Props {
 	width?: number;
 	height?: number;
 }
+
+type ImageMetadata = {
+	width: number;
+	height: number;
+	widths: number[];
+};
 
 const {
 	image,
@@ -58,13 +64,13 @@ function keyWithoutExtension(key: string): string {
 
 const key = mediaKey(image);
 const avifId = key ? keyWithoutExtension(key) : null;
-const fallbackWidth = width ?? mediaWidth(image);
-const fallbackHeight = height ?? mediaHeight(image);
-const avifWidths = avifId
-	? (avifWidthsById as Record<string, number[] | undefined>)[avifId]
+const metadata = avifId
+	? (mediaImageMetadata as Record<string, ImageMetadata | undefined>)[avifId]
 	: undefined;
-const avifSrcset = avifId && avifWidths?.length
-	? avifWidths
+const fallbackWidth = width ?? mediaWidth(image) ?? metadata?.width;
+const fallbackHeight = height ?? mediaHeight(image) ?? metadata?.height;
+const avifSrcset = avifId && metadata?.widths.length
+	? metadata.widths
 		.map((variantWidth) => `/_emdash/api/media/file/derivatives/${avifId}/${variantWidth}.avif ${variantWidth}w`)
 		.join(", ")
 	: undefined;
