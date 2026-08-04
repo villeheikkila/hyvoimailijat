@@ -2,13 +2,14 @@
 import { getEmDashCollection } from "emdash";
 import { Image } from "emdash/ui";
 import Base from "../layouts/Base.astro";
+import FeedCard from "../components/FeedCard.astro";
 import {
 	attachVenues,
 	formatEventDateTimeRange,
 	getEventDate,
 	getUpcomingEvents,
 } from "../utils/events";
-import { getReadingTime } from "../utils/reading-time";
+import { getPostFeedMeta } from "../utils/feed";
 
 const [
 	{ entries: posts, cacheHint: postsCacheHint },
@@ -38,14 +39,6 @@ const heroPost = posts.find((post) => post.data.featured_image);
 const latestPosts = posts.slice(0, 10);
 const upcomingEvents = getUpcomingEvents(attachVenues(events, venues)).slice(0, 3);
 
-function formatDate(date: Date | null | undefined) {
-	if (!date) return null;
-	return date.toLocaleDateString("fi-FI", {
-		year: "numeric",
-		month: "numeric",
-		day: "numeric",
-	});
-}
 ---
 
 <Base
@@ -101,13 +94,16 @@ function formatDate(date: Date | null | undefined) {
 			</header>
 			<div class="home-events-list">
 				{upcomingEvents.map((event) => (
-					<a href={`/tapahtumat/${event.id}`} class="event-card">
-						<time datetime={getEventDate(event.data.start_at)?.toISOString()}>
-							{formatEventDateTimeRange(event, "fi")}
-						</time>
-						<h3>{event.data.title}</h3>
-						{event.venueEntry && <p>{event.venueEntry.data.title}</p>}
-					</a>
+					<FeedCard
+						variant="compact"
+						href={`/tapahtumat/${event.id}`}
+						title={event.data.title}
+						description={event.venueEntry?.data.title}
+						meta={[{
+							label: formatEventDateTimeRange(event, "fi"),
+							datetime: getEventDate(event.data.start_at)?.toISOString(),
+						}]}
+					/>
 				))}
 			</div>
 		</section>
@@ -121,22 +117,14 @@ function formatDate(date: Date | null | undefined) {
 		</header>
 		<div class="news-list">
 			{latestPosts.map((post) => (
-				<a href={`/posts/${post.id}`} class="article-card">
-					{post.data.featured_image && (
-						<div class="article-card-image">
-							<Image image={post.data.featured_image} />
-						</div>
-					)}
-					<div class="article-card-body">
-						<span class="article-card-meta">
-							{formatDate(post.data.publishedAt)}
-							{" / "}
-							{getReadingTime(post.data.content)} min
-						</span>
-						<h3>{post.data.title}</h3>
-						<p>{post.data.excerpt}</p>
-					</div>
-				</a>
+				<FeedCard
+					variant="compact"
+					href={`/posts/${post.id}`}
+					title={post.data.title}
+					description={post.data.excerpt}
+					image={post.data.featured_image}
+					meta={getPostFeedMeta(post.data.publishedAt, post.data.content, "fi")}
+				/>
 			))}
 		</div>
 	</section>

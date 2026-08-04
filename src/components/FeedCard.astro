@@ -1,0 +1,304 @@
+---
+import type { MediaValue } from "emdash";
+import { Image } from "emdash/ui";
+import type { FeedMetaItem } from "../utils/feed";
+
+export type FeedCardVariant = "archive" | "compact" | "row";
+
+export interface FeedCardTag {
+	slug: string;
+	label: string;
+	href?: string;
+}
+
+interface Props {
+	title: string;
+	href: string;
+	variant?: FeedCardVariant;
+	description?: string | null;
+	image?: MediaValue | string | null;
+	meta?: FeedMetaItem[];
+	tags?: FeedCardTag[];
+}
+
+const {
+	title,
+	href,
+	variant = "archive",
+	description,
+	image,
+	meta = [],
+	tags = [],
+} = Astro.props;
+
+const visibleMeta = meta.filter((item) => item.label);
+const visibleTags = tags.slice(0, 2);
+const tagHref = (tag: FeedCardTag) => tag.href ?? `/tag/${tag.slug}`;
+---
+
+<article class:list={["feed-card", `feed-card--${variant}`, image && "feed-card--has-image"]}>
+	<a href={href} class="feed-card__link">
+		{
+			image && variant !== "row" && (
+				<div class="feed-card__image">
+					<Image image={image} />
+				</div>
+			)
+		}
+		{
+			variant === "row" && visibleMeta.length > 0 && (
+				<div class="feed-card__meta feed-card__meta--row">
+					{visibleMeta.map((item, index) => (
+						<>
+							{index > 0 && <span class="feed-card__dot" aria-hidden="true" />}
+							{item.datetime ? (
+								<time datetime={item.datetime}>{item.label}</time>
+							) : (
+								<span>{item.label}</span>
+							)}
+						</>
+					))}
+				</div>
+			)
+		}
+		<div class="feed-card__body">
+			{
+				variant !== "row" && visibleMeta.length > 0 && (
+					<div class="feed-card__meta">
+						{visibleMeta.map((item, index) => (
+							<>
+								{index > 0 && <span class="feed-card__dot" aria-hidden="true" />}
+								{item.datetime ? (
+									<time datetime={item.datetime}>{item.label}</time>
+								) : (
+									<span>{item.label}</span>
+								)}
+							</>
+						))}
+					</div>
+				)
+			}
+			<h3 class="feed-card__title">{title}</h3>
+			{description && <p class="feed-card__description">{description}</p>}
+		</div>
+	</a>
+	{
+		visibleTags.length > 0 && (
+			<div class="feed-card__tags">
+				{visibleTags.map((tag) => (
+					<a href={tagHref(tag)} class="feed-card__tag">
+						{tag.label}
+					</a>
+				))}
+			</div>
+		)
+	}
+</article>
+
+<style>
+	.feed-card {
+		color: var(--color-text);
+	}
+
+	.feed-card__link {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.feed-card__meta {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0 var(--spacing-3);
+		color: var(--color-muted);
+		font-size: var(--font-size-sm);
+		font-weight: 650;
+	}
+
+	.feed-card__meta time,
+	.feed-card__meta span:not(.feed-card__dot) {
+		white-space: nowrap;
+	}
+
+	.feed-card__dot {
+		width: 3px;
+		height: 3px;
+		border-radius: 50%;
+		background: var(--color-muted);
+	}
+
+	.feed-card__title {
+		line-height: var(--leading-tight);
+		letter-spacing: 0;
+		transition: color var(--transition-fast);
+	}
+
+	.feed-card__description {
+		color: var(--color-text-secondary);
+		line-height: var(--leading-relaxed);
+	}
+
+	.feed-card__link:hover .feed-card__title {
+		color: var(--color-brand);
+	}
+
+	.feed-card__image {
+		overflow: hidden;
+		background: var(--color-bg-subtle);
+	}
+
+	.feed-card__image img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		transition: transform 0.3s ease;
+	}
+
+	.feed-card__link:hover .feed-card__image img {
+		transform: scale(1.03);
+	}
+
+	.feed-card__tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		margin-top: var(--spacing-3);
+	}
+
+	.feed-card__tag {
+		display: inline-block;
+		padding: var(--tag-padding-y) var(--spacing-2);
+		border-radius: var(--radius);
+		background: var(--color-surface);
+		color: var(--color-text-secondary);
+		font-size: var(--font-size-xs);
+		text-decoration: none;
+		transition:
+			background var(--transition-fast),
+			color var(--transition-fast);
+	}
+
+	.feed-card__tag:hover {
+		background: var(--color-border);
+		color: var(--color-text);
+	}
+
+	.feed-card--archive {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.feed-card--archive .feed-card__link {
+		display: block;
+	}
+
+	.feed-card--archive .feed-card__image {
+		aspect-ratio: 16 / 10;
+		margin-bottom: var(--spacing-4);
+		border-radius: var(--radius-lg);
+	}
+
+	.feed-card--archive .feed-card__body {
+		display: grid;
+		gap: var(--spacing-2);
+	}
+
+	.feed-card--archive .feed-card__title {
+		font-size: var(--font-size-xl);
+		font-weight: var(--font-weight-heading);
+		line-height: var(--leading-snug);
+	}
+
+	.feed-card--archive .feed-card__description {
+		display: -webkit-box;
+		overflow: hidden;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+	}
+
+	.feed-card--compact,
+	.feed-card--row {
+		overflow: hidden;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-surface);
+		transition: border-color var(--transition-fast);
+	}
+
+	.feed-card--compact:hover,
+	.feed-card--row:hover {
+		border-color: color-mix(in srgb, var(--color-brand) 72%, var(--color-border));
+	}
+
+	.feed-card--compact .feed-card__link {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		min-height: 176px;
+	}
+
+	.feed-card--compact.feed-card--has-image .feed-card__link {
+		grid-template-columns: 180px minmax(0, 1fr);
+	}
+
+	.feed-card--compact .feed-card__image {
+		width: 100%;
+		min-height: 100%;
+	}
+
+	.feed-card--compact .feed-card__image img {
+		aspect-ratio: 1 / 1;
+	}
+
+	.feed-card--compact .feed-card__body {
+		display: grid;
+		align-content: start;
+		gap: var(--spacing-3);
+		padding: var(--spacing-5);
+	}
+
+	.feed-card--compact .feed-card__title,
+	.feed-card--row .feed-card__title {
+		font-size: var(--font-size-xl);
+		font-weight: var(--font-weight-heading);
+	}
+
+	.feed-card--compact .feed-card__description {
+		display: -webkit-box;
+		overflow: hidden;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+	}
+
+	.feed-card--row {
+		background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+	}
+
+	.feed-card--row .feed-card__link {
+		display: grid;
+		grid-template-columns: minmax(12rem, 0.32fr) minmax(0, 1fr);
+		gap: var(--spacing-5);
+		padding: var(--spacing-5);
+	}
+
+	.feed-card--row .feed-card__meta {
+		align-content: start;
+		align-items: flex-start;
+		padding-top: 0.15em;
+	}
+
+	.feed-card--row .feed-card__body {
+		display: grid;
+		gap: var(--spacing-2);
+	}
+
+	@media (max-width: 700px) {
+		.feed-card--compact.feed-card--has-image .feed-card__link,
+		.feed-card--row .feed-card__link {
+			grid-template-columns: 1fr;
+		}
+
+		.feed-card--compact .feed-card__image {
+			aspect-ratio: 16 / 10;
+		}
+	}
+</style>

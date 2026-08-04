@@ -1,6 +1,5 @@
 ---
 import { decodeSlug, getEmDashCollection, getEmDashEntry, getSeoMeta } from "emdash";
-import type { PortableTextBlock } from "emdash";
 import { Image } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 import RichPortableText from "../../components/RichPortableText.astro";
@@ -10,29 +9,6 @@ import {
 	formatEventDateTimeRange,
 	getEventStatusLabel,
 } from "../../utils/events";
-
-type EventDetailData = {
-	id: string;
-	title: string;
-	start_at: Date | string;
-	end_at?: Date | string;
-	event_status?: string;
-	event_type?: string;
-	registration_url?: string;
-	results_url?: string;
-	featured_image?: Parameters<typeof Image>[0]["image"];
-	summary?: string;
-	content?: PortableTextBlock[];
-	publishedAt?: Date | null;
-	updatedAt: Date;
-};
-
-type VenueDetailData = {
-	title: string;
-	address?: string;
-	city?: string;
-	website_url?: string;
-};
 
 const slug = decodeSlug(Astro.params.slug);
 
@@ -66,10 +42,8 @@ if (Astro.cache?.enabled) {
 
 const [eventWithVenue] = attachVenues([event], venues);
 const venue = eventWithVenue.venueEntry;
-const eventData = event.data as EventDetailData;
-const venueData = venue?.data as VenueDetailData | undefined;
 const eventPosts = posts
-	.filter((post) => (post.data as typeof post.data & { event?: string }).event === eventData.id)
+	.filter((post) => post.data.event === event.data.id)
 	.sort((a, b) => (b.data.publishedAt?.getTime() ?? 0) - (a.data.publishedAt?.getTime() ?? 0));
 const seo = getSeoMeta(event, {
 	siteTitle: "Helsingin Yliopiston Voimailijat",
@@ -85,16 +59,16 @@ const seo = getSeoMeta(event, {
 	canonical={seo.canonical}
 	robots={seo.robots}
 	type="article"
-	publishedTime={eventData.publishedAt?.toISOString() ?? null}
-	modifiedTime={eventData.updatedAt.toISOString()}
-	content={{ collection: "events", id: eventData.id, slug }}
+	publishedTime={event.data.publishedAt?.toISOString() ?? null}
+	modifiedTime={event.data.updatedAt.toISOString()}
+	content={{ collection: "events", id: event.data.id, slug }}
 >
 	<article class="event-detail">
 		<header class="event-detail-header">
-			<p class="eyebrow">{getEventStatusLabel(eventData.event_status, "fi")}</p>
-			<h1>{eventData.title}</h1>
+			<p class="eyebrow">{getEventStatusLabel(event.data.event_status, "fi")}</p>
+			<h1>{event.data.title}</h1>
 			<p class="event-detail-time">
-				<time datetime={getEventDate(eventData.start_at)?.toISOString()}>{formatEventDateTimeRange(event, "fi")}</time>
+				<time datetime={getEventDate(event.data.start_at)?.toISOString()}>{formatEventDateTimeRange(event, "fi")}</time>
 			</p>
 		</header>
 
@@ -103,27 +77,27 @@ const seo = getSeoMeta(event, {
 				{venue && (
 					<div>
 						<span>Paikka</span>
-						{venueData?.website_url ? (
-							<a href={venueData.website_url} class="venue-link" target="_blank" rel="noreferrer">
-								<strong>{venueData.title}</strong>
+						{venue.data.website_url ? (
+							<a href={venue.data.website_url} class="venue-link" target="_blank" rel="noreferrer">
+								<strong>{venue.data.title}</strong>
 							</a>
 						) : (
-							<strong>{venueData?.title}</strong>
+							<strong>{venue.data.title}</strong>
 						)}
 						<p>
-							{venueData?.address}
-							{venueData?.city ? <><br />{venueData.city}</> : null}
+							{venue.data.address}
+							{venue.data.city ? <><br />{venue.data.city}</> : null}
 						</p>
 					</div>
 				)}
-				{eventData.event_type && (
+				{event.data.event_type && (
 					<div>
 						<span>Laji</span>
-						<strong>{eventData.event_type}</strong>
+						<strong>{event.data.event_type}</strong>
 					</div>
 				)}
-				{eventData.registration_url && (
-					<a href={eventData.registration_url} class="button primary">Ilmoittaudu</a>
+				{event.data.registration_url && (
+					<a href={event.data.registration_url} class="button primary">Ilmoittaudu</a>
 				)}
 				{eventPosts.length > 0 ? (
 					<div class="event-detail-posts">
@@ -132,15 +106,15 @@ const seo = getSeoMeta(event, {
 							<a href={`/posts/${post.id}`}>{post.data.title}</a>
 						))}
 					</div>
-				) : eventData.results_url ? (
-					<a href={eventData.results_url} class="button secondary">Tulokset</a>
+				) : event.data.results_url ? (
+					<a href={event.data.results_url} class="button secondary">Tulokset</a>
 				) : null}
 			</aside>
 
 			<div class="event-detail-body">
-				{eventData.featured_image && <Image image={eventData.featured_image} />}
-				{eventData.summary && <p class="event-summary">{eventData.summary}</p>}
-				<RichPortableText value={eventData.content} />
+				{event.data.featured_image && <Image image={event.data.featured_image} />}
+				{event.data.summary && <p class="event-summary">{event.data.summary}</p>}
+				<RichPortableText value={event.data.content} />
 			</div>
 		</div>
 	</article>

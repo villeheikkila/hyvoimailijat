@@ -1,8 +1,10 @@
 ---
 import { getEmDashCollection, getTermsForEntries } from "emdash";
 import Base from "../../layouts/Base.astro";
-import PostCard from "../../components/PostCard.astro";
-import { getReadingTime } from "../../utils/reading-time";
+import ArchiveShell from "../../components/ArchiveShell.astro";
+import FeedCard from "../../components/FeedCard.astro";
+import FeedGrid from "../../components/FeedGrid.astro";
+import { getPostFeedMeta } from "../../utils/feed";
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	orderBy: { published_at: "desc" },
@@ -18,82 +20,21 @@ const tagsByEntry = await getTermsForEntries(
 ---
 
 <Base title="Uutiset" description="HYV:n uutiset, artikkelit ja kisaraportit">
-	<section class="archive-section">
-		<header class="archive-header">
-			<span class="archive-label">Ajankohtaista</span>
-			<h1 class="archive-title">Uutiset</h1>
-			<p class="archive-count">{posts.length} artikkelia</p>
-		</header>
-
-		<div class="posts-grid">
+	<ArchiveShell label="Ajankohtaista" title="Uutiset" count={`${posts.length} artikkelia`}>
+		<FeedGrid>
 			{posts.map((post) => (
-				<PostCard
+				<FeedCard
 					title={post.data.title}
-					excerpt={post.data.excerpt}
-					featuredImage={post.data.featured_image}
+					description={post.data.excerpt}
+					image={post.data.featured_image}
 					href={`/posts/${post.id}`}
-					date={post.data.publishedAt ?? undefined}
-					readingTime={getReadingTime(post.data.content)}
+					meta={getPostFeedMeta(post.data.publishedAt, post.data.content, "fi")}
 					tags={(tagsByEntry.get(post.data.id) ?? []).map((tag) => ({
 						slug: tag.slug,
 						label: tag.label,
 					}))}
 				/>
 			))}
-		</div>
-	</section>
+		</FeedGrid>
+	</ArchiveShell>
 </Base>
-
-<style>
-	.archive-section {
-		max-width: var(--wide-width);
-		margin: 0 auto;
-		padding: var(--spacing-12) var(--layout-margin);
-	}
-
-	.archive-header {
-		margin-bottom: var(--spacing-10);
-		padding-bottom: var(--spacing-5);
-		border-bottom: 1px solid var(--color-border-subtle);
-	}
-
-	.archive-label {
-		display: block;
-		margin-bottom: var(--spacing-2);
-		color: var(--color-brand);
-		font-size: var(--font-size-xs);
-		font-weight: 700;
-		letter-spacing: var(--tracking-wider);
-		text-transform: uppercase;
-	}
-
-	.archive-title {
-		margin-bottom: var(--spacing-2);
-		font-size: var(--title-page-compact);
-		font-weight: var(--font-weight-display);
-		letter-spacing: 0;
-	}
-
-	.archive-count {
-		color: var(--color-muted);
-		font-size: var(--font-size-sm);
-	}
-
-	.posts-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: var(--spacing-12) var(--spacing-8);
-	}
-
-	@media (max-width: 900px) {
-		.posts-grid {
-			grid-template-columns: repeat(2, 1fr);
-		}
-	}
-
-	@media (max-width: 600px) {
-		.posts-grid {
-			grid-template-columns: 1fr;
-		}
-	}
-</style>

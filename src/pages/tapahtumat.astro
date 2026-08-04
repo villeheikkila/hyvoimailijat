@@ -1,6 +1,8 @@
 ---
 import { getEmDashCollection } from "emdash";
 import Base from "../layouts/Base.astro";
+import ArchiveShell from "../components/ArchiveShell.astro";
+import FeedCard from "../components/FeedCard.astro";
 import {
 	attachVenues,
 	formatEventDateTimeRange,
@@ -35,30 +37,22 @@ const pastEventsByYear = groupEventsByYear(getPastEvents(eventsWithVenues));
 ---
 
 <Base title="Tapahtumat" description="HYV:n kilpailukalenteri ja tapahtuma-arkisto">
-	<section class="events-page">
-		<header class="archive-header">
-			<span class="archive-label">Kilpailut</span>
-			<h1 class="archive-title">Tapahtumat</h1>
-			<p class="archive-count">{events.length} tapahtumaa</p>
-		</header>
-
+	<ArchiveShell label="Kilpailut" title="Tapahtumat" count={`${events.length} tapahtumaa`}>
 		{upcomingEvents.length > 0 && (
 			<section class="events-section">
 				<h2>Tulevat tapahtumat</h2>
 				<div class="events-list">
 					{upcomingEvents.map((event) => (
-						<div class="event-row">
-							<a href={`/tapahtumat/${event.id}`} class="event-row-main">
-								<time datetime={getEventDate(event.data.start_at)?.toISOString()}>{formatEventDateTimeRange(event, "fi")}</time>
-								<div>
-									<h2>{event.data.title}</h2>
-									<p>
-										{event.venueEntry?.data.title}
-										{event.venueEntry?.data.city ? `, ${event.venueEntry.data.city}` : ""}
-									</p>
-								</div>
-							</a>
-						</div>
+						<FeedCard
+							variant="row"
+							href={`/tapahtumat/${event.id}`}
+							title={event.data.title}
+							description={`${event.venueEntry?.data.title ?? ""}${event.venueEntry?.data.city ? `, ${event.venueEntry.data.city}` : ""}`}
+							meta={[{
+								label: formatEventDateTimeRange(event, "fi"),
+								datetime: getEventDate(event.data.start_at)?.toISOString(),
+							}]}
+						/>
 					))}
 				</div>
 			</section>
@@ -72,63 +66,26 @@ const pastEventsByYear = groupEventsByYear(getPastEvents(eventsWithVenues));
 						<h3>{year}</h3>
 						<div class="events-list">
 							{yearEvents.map((event) => (
-								<div class="event-row">
-									<a href={`/tapahtumat/${event.id}`} class="event-row-main">
-										<time datetime={getEventDate(event.data.start_at)?.toISOString()}>{formatEventDateTimeRange(event, "fi")}</time>
-										<div>
-											<h2>{event.data.title}</h2>
-											<p>
-												{event.venueEntry?.data.title}
-												{event.venueEntry?.data.city ? `, ${event.venueEntry.data.city}` : ""}
-												{event.data.event_status === "cancelled" ? ` / ${getEventStatusLabel(event.data.event_status, "fi")}` : ""}
-											</p>
-										</div>
-									</a>
-								</div>
+								<FeedCard
+									variant="row"
+									href={`/tapahtumat/${event.id}`}
+									title={event.data.title}
+									description={`${event.venueEntry?.data.title ?? ""}${event.venueEntry?.data.city ? `, ${event.venueEntry.data.city}` : ""}${event.data.event_status === "cancelled" ? ` / ${getEventStatusLabel(event.data.event_status, "fi")}` : ""}`}
+									meta={[{
+										label: formatEventDateTimeRange(event, "fi"),
+										datetime: getEventDate(event.data.start_at)?.toISOString(),
+									}]}
+								/>
 							))}
 						</div>
 					</section>
 				))}
 			</div>
 		</section>
-	</section>
+	</ArchiveShell>
 </Base>
 
 <style>
-	.events-page {
-		max-width: var(--wide-width);
-		margin: 0 auto;
-		padding: var(--spacing-12) var(--layout-margin) var(--spacing-16);
-	}
-
-	.archive-header {
-		margin-bottom: var(--spacing-10);
-		padding-bottom: var(--spacing-5);
-		border-bottom: 1px solid var(--color-border-subtle);
-	}
-
-	.archive-label {
-		display: block;
-		margin-bottom: var(--spacing-2);
-		color: var(--color-brand);
-		font-size: var(--font-size-xs);
-		font-weight: 700;
-		letter-spacing: var(--tracking-wider);
-		text-transform: uppercase;
-	}
-
-	.archive-title {
-		margin-bottom: var(--spacing-2);
-		font-size: var(--title-page-compact);
-		font-weight: var(--font-weight-display);
-		letter-spacing: 0;
-	}
-
-	.archive-count {
-		color: var(--color-muted);
-		font-size: var(--font-size-sm);
-	}
-
 	.events-section {
 		display: grid;
 		gap: var(--spacing-5);
@@ -149,44 +106,5 @@ const pastEventsByYear = groupEventsByYear(getPastEvents(eventsWithVenues));
 	.event-year {
 		display: grid;
 		gap: var(--spacing-4);
-	}
-
-	.event-row {
-		grid-template-columns: minmax(0, 1fr) auto;
-		align-items: center;
-		padding: var(--spacing-5);
-	}
-
-	.event-row-main {
-		display: grid;
-		grid-template-columns: minmax(12rem, 0.32fr) minmax(0, 1fr);
-		gap: var(--spacing-2);
-		color: inherit;
-	}
-
-	.event-row-link {
-		align-self: center;
-		border-radius: var(--radius-md);
-		padding: var(--spacing-2) var(--spacing-3);
-		color: var(--color-brand);
-		font-weight: 650;
-	}
-
-	.event-row-link:hover {
-		background: color-mix(in srgb, var(--color-brand) 9%, transparent);
-	}
-
-	@media (max-width: 700px) {
-		.events-page {
-			padding-inline: var(--layout-margin);
-		}
-
-		.event-row {
-			grid-template-columns: 1fr;
-		}
-
-		.event-row-main {
-			grid-template-columns: 1fr;
-		}
 	}
 </style>
