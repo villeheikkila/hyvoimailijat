@@ -13,6 +13,9 @@ interface Props {
 const { lang } = Astro.props;
 const query = Astro.url.searchParams.get("q")?.trim() || "";
 
+Astro.cache?.set(false);
+Astro.response.headers.set("Cache-Control", "private, no-store");
+
 type SearchResult = {
 	title: string;
 	href: string;
@@ -115,7 +118,7 @@ function scoreResult(title: string, body: string, term: string) {
 let results: SearchResult[] = [];
 
 if (query) {
-	const [{ entries: posts, cacheHint: postsCache }, { entries: pages, cacheHint: pagesCache }] =
+	const [{ entries: posts }, { entries: pages }] =
 		await Promise.all([
 			getEmDashCollection("posts", {
 				status: "published",
@@ -130,11 +133,6 @@ if (query) {
 				limit: 200,
 			}),
 		]);
-
-	if (Astro.cache?.enabled) {
-		Astro.cache.set(postsCache);
-		Astro.cache.set(pagesCache);
-	}
 
 	const postResults = posts.map((post): SearchResult | null => {
 		const contentText = getPlainText(post.data.content as PortableTextBlock[]);
