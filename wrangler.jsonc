@@ -20,4 +20,23 @@
 	"triggers": {
 		"crons": ["* * * * *"],
 	},
+	"env": {
+		"staging": {
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "hyvoimailijat-staging-db",
+					"database_id": "9a4dd185-6968-4788-a81d-4831bbad467a",
+					"remote": true,
+				},
+			],
+			"r2_buckets": [
+				{
+					"binding": "MEDIA",
+					"bucket_name": "hyvoimailijat-staging-media",
+					"remote": true,
+				},
+			],
+		},
+	},
 }

@@ -48,21 +48,37 @@ A clean, minimal blog built with [EmDash](https://github.com/emdash-cms/emdash) 
 
 ```bash
 pnpm install
-pnpm sync:prod
+pnpm refresh:staging
 pnpm dev
 ```
 
-`pnpm sync:prod` copies the production D1 database and every R2 media object
-referenced by the `media` table into local Wrangler storage. It resets only the
-local Wrangler D1/R2 state under `.wrangler/state/v3`; production is read-only
-during the sync.
+By default, local Astro uses remote bindings to the isolated staging D1 and R2
+resources. `pnpm refresh:staging` replaces staging D1 from production. Production
+is read-only during the refresh. Authentication, sessions, audit logs, plugin
+state, form submissions, and the production site URL are deliberately excluded.
+
+The staging R2 bucket has already been initialized. Include media only after new
+production uploads, since bulk media copying is necessarily slower:
 
 Useful options:
 
 ```bash
-pnpm sync:prod -- --skip-media
-pnpm sync:prod -- --media-only --resume-media
-pnpm sync:prod -- --dry-run
+pnpm refresh:staging -- --with-media
+pnpm refresh:staging -- --media-only --resume-media
+pnpm refresh:staging -- --dry-run
+```
+
+For a fully local, offline copy instead:
+
+```bash
+pnpm refresh:local
+pnpm dev:local
+```
+
+For local admin access without reapplying demo seed content, use:
+
+```text
+http://localhost:4321/_emdash/api/auth/dev-bypass?redirect=/_emdash/admin
 ```
 
 ## Deploying

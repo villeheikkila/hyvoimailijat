@@ -7,11 +7,14 @@
     "seed": "seed/seed.json"
   },
   "scripts": {
-    "dev": "astro dev",
+    "dev": "pnpm run dev:staging",
+    "dev:staging": "CLOUDFLARE_ENV=staging astro dev",
+    "dev:local": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
     "deploy": "astro build && wrangler deploy --config dist/server/wrangler.json",
-    "sync:prod": "node scripts/sync-prod-to-local.mjs",
+    "refresh:staging": "node scripts/refresh-data.mjs --target=staging",
+    "refresh:local": "node scripts/refresh-data.mjs --target=local",
     "typecheck": "astro check"
   },
   "dependencies": {
