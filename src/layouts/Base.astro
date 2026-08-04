@@ -68,6 +68,7 @@ const nav =
 
 const langHref = lang === "fi" ? "/en" : "/";
 const langLabel = lang === "fi" ? "EN" : "FI";
+const langSwitchLabel = lang === "fi" ? "Switch to English" : "Vaihda suomeksi";
 
 const pageCtx = createPublicPageContext({
 	Astro,
@@ -104,9 +105,13 @@ const isLoggedIn = !!Astro.locals.user;
 				var c = document.cookie;
 				var i = c.indexOf("theme=");
 				var theme = i >= 0 ? c.slice(i + 6).split(";")[0] : null;
-				if (theme === "dark" || theme === "light") {
-					document.documentElement.classList.add(theme);
+				if (theme !== "dark" && theme !== "light") {
+					theme = window.matchMedia("(prefers-color-scheme: dark)").matches
+						? "dark"
+						: "light";
 				}
+				document.documentElement.classList.remove("light", "dark");
+				document.documentElement.classList.add(theme);
 			})();
 		</script>
 	</head>
@@ -114,30 +119,40 @@ const isLoggedIn = !!Astro.locals.user;
 		<EmDashBodyStart page={pageCtx} />
 		<header class="site-header">
 			<nav class="nav" aria-label={lang === "fi" ? "Päävalikko" : "Primary"}>
-				<a href={lang === "fi" ? "/" : "/en"} class="site-title">
-					<HyvLogo class="site-logo-img" />
-					<span class="site-name">Helsingin Yliopiston Voimailijat</span>
-				</a>
-				<div class="nav-right">
-					<div class="nav-links">
-						{nav.map((item) => <a href={item.href}>{item.label}</a>)}
-					</div>
-					<a href={langHref} class="lang-switch">{langLabel}</a>
+				<div class="nav-brand">
+					<details class="nav-menu">
+						<summary class="nav-menu-button" aria-label={lang === "fi" ? "Avaa valikko" : "Open navigation menu"}>
+							<svg viewBox="0 0 24 24" aria-hidden="true">
+								<path d="M4 6h16M4 12h10M4 18h16"></path>
+							</svg>
+						</summary>
+						<div class="nav-menu-panel">
+							{nav.map((item) => <a href={item.href}>{item.label}</a>)}
+						</div>
+					</details>
+					<a href={lang === "fi" ? "/" : "/en"} class="site-title" aria-label={siteTitle}>
+						<HyvLogo class="site-logo-img" />
+					</a>
+				</div>
+				<div class="nav-links nav-links-desktop">
+					{nav.map((item) => <a href={item.href}>{item.label}</a>)}
+				</div>
+				<div class="nav-actions">
+					<a href={langHref} class="lang-switch" aria-label={langSwitchLabel} title={langSwitchLabel}>
+						<span class="sr-only">{langSwitchLabel}</span>
+						<span aria-hidden="true">{langLabel}</span>
+					</a>
 					{isLoggedIn && <a href="/_emdash/admin" class="nav-admin">Admin</a>}
-					<label class="theme-toggle" aria-label={lang === "fi" ? "Vaihda teemaa" : "Toggle theme"}>
+					<button class="theme-toggle" type="button" aria-label={lang === "fi" ? "Vaihda teemaa" : "Toggle theme"}>
 						<span class="sr-only">{lang === "fi" ? "Vaihda teemaa" : "Toggle theme"}</span>
-						<input type="checkbox" class="theme-toggle-input" aria-label={lang === "fi" ? "Vaihda teemaa" : "Toggle theme"} />
-						<span class="theme-toggle-track" aria-hidden="true">
-							<svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24">
-								<circle cx="12" cy="12" r="3.5"></circle>
-								<path d="M12 2.5v2M12 19.5v2M4.57 4.57l1.42 1.42M18.01 18.01l1.42 1.42M2.5 12h2M19.5 12h2M4.57 19.43l1.42-1.42M18.01 5.99l1.42-1.42"></path>
-							</svg>
-							<span class="theme-toggle-thumb"></span>
-							<svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24">
-								<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
-							</svg>
-						</span>
-					</label>
+						<svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" aria-hidden="true">
+							<circle cx="12" cy="12" r="3.5"></circle>
+							<path d="M12 2.5v2M12 19.5v2M4.57 4.57l1.42 1.42M18.01 18.01l1.42 1.42M2.5 12h2M19.5 12h2M4.57 19.43l1.42-1.42M18.01 5.99l1.42-1.42"></path>
+						</svg>
+						<svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+						</svg>
+					</button>
 				</div>
 			</nav>
 		</header>
@@ -160,7 +175,7 @@ const isLoggedIn = !!Astro.locals.user;
 		<script>
 			const THEME_REGEX = /theme=([^;]+)/;
 			const themeToggle =
-				document.querySelector<HTMLInputElement>(".theme-toggle-input");
+				document.querySelector<HTMLButtonElement>(".theme-toggle");
 			const root = document.documentElement;
 
 			function setCookie(name: string, value: string, maxAge = 31536000) {
@@ -176,7 +191,7 @@ const isLoggedIn = !!Astro.locals.user;
 				setCookie("theme", theme);
 				root.classList.remove("light", "dark");
 				root.classList.add(theme);
-				if (themeToggle) themeToggle.checked = theme === "dark";
+				themeToggle?.setAttribute("aria-pressed", String(theme === "dark"));
 			}
 
 			const match = document.cookie.match(THEME_REGEX);
@@ -184,8 +199,8 @@ const isLoggedIn = !!Astro.locals.user;
 				? "dark"
 				: "light";
 			setTheme(match && (match[1] === "light" || match[1] === "dark") ? match[1] : systemTheme);
-			themeToggle?.addEventListener("change", () =>
-				setTheme(themeToggle.checked ? "dark" : "light")
+			themeToggle?.addEventListener("click", () =>
+				setTheme(root.classList.contains("dark") ? "light" : "dark")
 			);
 		</script>
 
