@@ -1,5 +1,5 @@
 ---
-import { pluginBlockComponents } from "virtual:emdash/block-components";
+import { blockComponents } from "@emdash-cms/plugin-forms/astro";
 import type { Locale } from "../utils/club-pages";
 
 interface Props {
@@ -7,7 +7,7 @@ interface Props {
 }
 
 const { lang } = Astro.props;
-const FormEmbed = pluginBlockComponents["emdash-form"] as any;
+const FormEmbed = blockComponents["emdash-form"];
 const formId = lang === "fi" ? "contact-fi" : "contact-en";
 const heading = lang === "fi" ? "Ota yhteyttä" : "Contact";
 ---

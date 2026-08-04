@@ -101,9 +101,8 @@ const isLoggedIn = !!Astro.locals.user;
 		<EmDashHead page={pageCtx} />
 		<script is:inline>
 			(function () {
-				var c = document.cookie;
-				var i = c.indexOf("theme=");
-				var theme = i >= 0 ? c.slice(i + 6).split(";")[0] : null;
+				var match = document.cookie.match(/(?:^|;\s*)theme=(light|dark)(?:;|$)/);
+				var theme = match ? match[1] : null;
 				if (theme !== "dark" && theme !== "light") {
 					theme = window.matchMedia("(prefers-color-scheme: dark)").matches
 						? "dark"
@@ -111,6 +110,7 @@ const isLoggedIn = !!Astro.locals.user;
 				}
 				document.documentElement.classList.remove("light", "dark");
 				document.documentElement.classList.add(theme);
+				document.documentElement.style.colorScheme = theme;
 			})();
 		</script>
 	</head>
@@ -188,33 +188,36 @@ const isLoggedIn = !!Astro.locals.user;
 			</div>
 		</footer>
 
-		<script>
-			const THEME_REGEX = /theme=([^;]+)/;
-			const themeToggle =
-				document.querySelector<HTMLButtonElement>(".theme-toggle");
-			const root = document.documentElement;
+		<script is:inline>
+			var themeToggle = document.querySelector(".theme-toggle");
+			var root = document.documentElement;
 
-			function setCookie(name: string, value: string, maxAge = 31536000) {
-				const secure = location.protocol === "https:" ? "; Secure" : "";
+			function setCookie(name, value, maxAge) {
+				var secure = location.protocol === "https:" ? "; Secure" : "";
 				if (value === "") {
 					document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax${secure}`;
 				} else {
-					document.cookie = `${name}=${value}; path=/; max-age=${maxAge}; SameSite=Lax${secure}`;
+					document.cookie = `${name}=${value}; path=/; max-age=${maxAge || 31536000}; SameSite=Lax${secure}`;
 				}
 			}
 
-			function setTheme(theme: string) {
+			function getTheme() {
+				var match = document.cookie.match(/(?:^|;\s*)theme=(light|dark)(?:;|$)/);
+				if (match) return match[1];
+				return window.matchMedia("(prefers-color-scheme: dark)").matches
+					? "dark"
+					: "light";
+			}
+
+			function setTheme(theme) {
 				setCookie("theme", theme);
 				root.classList.remove("light", "dark");
 				root.classList.add(theme);
+				root.style.colorScheme = theme;
 				themeToggle?.setAttribute("aria-pressed", String(theme === "dark"));
 			}
 
-			const match = document.cookie.match(THEME_REGEX);
-			const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-				? "dark"
-				: "light";
-			setTheme(match && (match[1] === "light" || match[1] === "dark") ? match[1] : systemTheme);
+			setTheme(getTheme());
 			themeToggle?.addEventListener("click", () =>
 				setTheme(root.classList.contains("dark") ? "light" : "dark")
 			);
