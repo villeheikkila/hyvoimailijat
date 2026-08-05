@@ -152,7 +152,6 @@ const alternateUrls =
 	})) ||
 		[]);
 
-const isLoggedIn = !!Astro.locals.user;
 ---
 
 <!doctype html>
@@ -259,7 +258,6 @@ const isLoggedIn = !!Astro.locals.user;
 						<span class="sr-only">{langSwitchLabel}</span>
 						<span aria-hidden="true">{langLabel}</span>
 					</a>
-					{isLoggedIn && <a href="/_emdash/admin" class="nav-admin">Admin</a>}
 					<button class="theme-toggle" type="button" aria-label={lang === "fi" ? "Vaihda teemaa" : "Toggle theme"}>
 						<span class="sr-only">{lang === "fi" ? "Vaihda teemaa" : "Toggle theme"}</span>
 						<svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" aria-hidden="true">
