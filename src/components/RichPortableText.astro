@@ -20,7 +20,7 @@ const {
 type RenderItem =
 	| { type: "blocks"; blocks: PortableTextBlock[] }
 	| { type: "logo" }
-	| { type: "image"; image: MediaValue; caption?: string; priority: boolean }
+	| { type: "image"; image: MediaValue; caption?: string; priority: boolean; isFirstImage: boolean }
 	| { type: "embed"; embed: { type: string; url: string; title: string } }
 	| { type: "table"; title: string; columns: string[]; rows: string[][] }
 	| { type: "video"; src: string }
@@ -262,6 +262,7 @@ function buildRenderItems(blocks: PortableTextBlock[]): RenderItem[] {
 	const items: RenderItem[] = [];
 	let pendingBlocks: PortableTextBlock[] = [];
 	let didPrioritizeImage = false;
+	let didRenderImage = false;
 
 	const flushBlocks = () => {
 		if (pendingBlocks.length > 0) {
@@ -301,11 +302,13 @@ function buildRenderItems(blocks: PortableTextBlock[]): RenderItem[] {
 			const image = imageBlockToMediaValue(block);
 			const caption = imageCaption(block);
 			const priority = priorityFirstImage && !didPrioritizeImage;
+			const isFirstImage = !didRenderImage;
 			didPrioritizeImage = true;
+			didRenderImage = true;
 			if (!image) continue;
 
 			flushBlocks();
-			items.push({ type: "image", image, caption, priority });
+			items.push({ type: "image", image, caption, priority, isFirstImage });
 			continue;
 		}
 
@@ -355,6 +358,7 @@ const renderItems = buildRenderItems(value);
 						image={item.image}
 						alt={item.image.alt}
 						priority={item.priority}
+						class={item.isFirstImage ? "article-image article-image--lead" : "article-image"}
 						sizes="(max-width: 900px) 100vw, 680px"
 					/>
 					{item.caption && <figcaption>{item.caption}</figcaption>}
@@ -433,7 +437,7 @@ const renderItems = buildRenderItems(value);
 	.legacy-result-table__scroll {
 		overflow-x: auto;
 		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
+		border-radius: 0;
 	}
 
 	.legacy-result-table table {
@@ -466,7 +470,7 @@ const renderItems = buildRenderItems(value);
 		width: 100%;
 		max-width: 100%;
 		margin: 2em 0;
-		border-radius: var(--radius-lg);
+		border-radius: 0;
 		background: var(--color-surface);
 	}
 

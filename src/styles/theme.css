@@ -852,6 +852,8 @@ main {
 .rich-embed--instagram {
 	max-width: 540px;
 	margin-inline: auto;
+	overflow: visible;
+	border-radius: 0;
 }
 
 .rich-embed--instagram iframe {
