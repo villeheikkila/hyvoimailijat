@@ -83,7 +83,8 @@ const directLocalImage = !!(
 	fallbackHeight &&
 	(fallbackSrc.startsWith("/") || fallbackSrc.includes("/_emdash/api/media/file/"))
 );
-const avifSrcset = avifId && metadata?.widths.length
+const shouldEmitAvif = !import.meta.env.DEV;
+const avifSrcset = shouldEmitAvif && avifId && metadata?.widths.length
 	? metadata.widths
 		.map((variantWidth) => `/_emdash/api/media/file/derivatives/${avifId}/${variantWidth}.avif ${variantWidth}w`)
 		.join(", ")
@@ -105,6 +106,7 @@ const fetchpriority = priority ? "high" : undefined;
 				fetchpriority={fetchpriority}
 				decoding="async"
 				class="emdash-image-media"
+				data-fallback-url={fallbackSrc}
 			/>
 		</picture>
 	) : directLocalImage ? (

@@ -1,11 +1,5 @@
 ---
-import {
-	EmDashBodyEnd,
-	EmDashBodyStart,
-	EmDashHead,
-} from "emdash/ui";
 import { getMenu } from "emdash";
-import { createPublicPageContext } from "emdash/page";
 import { Font } from "astro:assets";
 import HyvLogo from "../components/HyvLogo.astro";
 import "../styles/tokens.css";
@@ -39,7 +33,6 @@ const {
 	modifiedTime,
 	author,
 	lang = Astro.url.pathname.startsWith("/en") ? "en" : "fi",
-	content,
 	alternates,
 } = Astro.props;
 
@@ -150,6 +143,7 @@ const routeAlternates: Record<string, Array<{ lang: string; path: string }>> = {
 
 const pathname = Astro.url.pathname.replace(/\/$/, "") || "/";
 const canonicalUrl = canonical ?? `${Astro.url.origin}${pathname}`;
+const metaTitle = pageTitle ?? title;
 const alternateUrls =
 	alternates ??
 	(routeAlternates[pathname]?.map((alternate) => ({
@@ -157,21 +151,6 @@ const alternateUrls =
 		href: `${Astro.url.origin}${alternate.path}`,
 	})) ||
 		[]);
-
-const pageCtx = createPublicPageContext({
-	Astro,
-	kind: content ? "content" : "custom",
-	pageType: type,
-	title: fullTitle,
-	pageTitle: pageTitle ?? title,
-	description,
-	canonical: canonicalUrl,
-	image,
-	content,
-	seo: { ogImage: image, robots },
-	articleMeta: { publishedTime, modifiedTime, author },
-	siteName: siteTitle,
-});
 
 const isLoggedIn = !!Astro.locals.user;
 ---
@@ -198,7 +177,22 @@ const isLoggedIn = !!Astro.locals.user;
 				/>
 			)
 		}
-		<EmDashHead page={pageCtx} />
+		<link rel="canonical" href={canonicalUrl} />
+		{description && <meta name="description" content={description} />}
+		{robots && <meta name="robots" content={robots} />}
+		<meta property="og:type" content={type} />
+		<meta property="og:title" content={metaTitle} />
+		{description && <meta property="og:description" content={description} />}
+		<meta property="og:url" content={canonicalUrl} />
+		<meta property="og:site_name" content={siteTitle} />
+		{image && <meta property="og:image" content={image} />}
+		{type === "article" && publishedTime && <meta property="article:published_time" content={publishedTime} />}
+		{type === "article" && modifiedTime && <meta property="article:modified_time" content={modifiedTime} />}
+		{type === "article" && author && <meta property="article:author" content={author} />}
+		<meta name="twitter:card" content={image ? "summary_large_image" : "summary"} />
+		<meta name="twitter:title" content={metaTitle} />
+		{description && <meta name="twitter:description" content={description} />}
+		{image && <meta name="twitter:image" content={image} />}
 		<script is:inline>
 			(function () {
 				var match = document.cookie.match(/(?:^|;\s*)theme=(light|dark)(?:;|$)/);
@@ -213,9 +207,28 @@ const isLoggedIn = !!Astro.locals.user;
 				document.documentElement.style.colorScheme = theme;
 			})();
 		</script>
+		<script is:inline>
+			(function () {
+				document.addEventListener(
+					"error",
+					function (event) {
+						var image = event.target;
+						if (!(image instanceof HTMLImageElement)) return;
+
+						var fallbackUrl = image.dataset.fallbackUrl;
+						if (!fallbackUrl || image.currentSrc === fallbackUrl) return;
+
+						while (image.previousElementSibling) {
+							image.previousElementSibling.remove();
+						}
+						image.src = fallbackUrl;
+					},
+					true,
+				);
+			})();
+		</script>
 	</head>
 	<body>
-		<EmDashBodyStart page={pageCtx} />
 		<header class="site-header">
 			<nav class="nav" aria-label={lang === "fi" ? "Päävalikko" : "Primary"}>
 				<div class="nav-brand">
@@ -323,6 +336,5 @@ const isLoggedIn = !!Astro.locals.user;
 			);
 		</script>
 
-		<EmDashBodyEnd page={pageCtx} />
 	</body>
 </html>
