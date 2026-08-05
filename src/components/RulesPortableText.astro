@@ -1,0 +1,223 @@
+---
+import type { PortableTextBlock } from "emdash";
+import RichPortableText from "./RichPortableText.astro";
+
+interface Props {
+	value?: PortableTextBlock[];
+	introTitle?: string;
+}
+
+interface RuleSection {
+	title: string;
+	blocks: PortableTextBlock[];
+}
+
+const { value = [], introTitle = "Yleistä" } = Astro.props;
+
+function blockStyle(block: PortableTextBlock): string | undefined {
+	return (block as unknown as { style?: string }).style;
+}
+
+function blockText(block: PortableTextBlock): string {
+	const children = (block as unknown as { children?: Array<{ text?: string }> }).children;
+	if (!Array.isArray(children)) return "";
+	return children.map((child) => child.text ?? "").join("").trim();
+}
+
+function textBlock(text: string, key: string): PortableTextBlock {
+	return {
+		_type: "block",
+		_key: `rules-${key}`,
+		style: "normal",
+		children: [
+			{
+				_type: "span",
+				_key: `rules-span-${key}`,
+				text,
+			},
+		],
+	} as unknown as PortableTextBlock;
+}
+
+function plainText(blocks: PortableTextBlock[]): string {
+	return blocks.map(blockText).filter(Boolean).join("\n").trim();
+}
+
+function splitLegacyNumberedRules(blocks: PortableTextBlock[]): RuleSection[] {
+	const text = plainText(blocks).replace(/\s+/g, " ").trim();
+	if (!text) return [];
+
+	const markers = Array.from(text.matchAll(/(?:^|\s)([1-8])\.\s*/g));
+	if (markers.length < 2 || markers[0].index !== 0) return [];
+
+	const legacyTitles = [
+		{
+			fi: "Osakilpailut",
+			en: "Competitions",
+		},
+		{
+			fi: "Osallistumisoikeus",
+			en: "Eligibility",
+		},
+		{
+			fi: "Liigan pisteytys",
+			en: "Scoring",
+		},
+		{
+			fi: "Ilmoittautuminen",
+			en: "Registration",
+		},
+		{
+			fi: "Vastuu",
+			en: "Liability",
+		},
+		{
+			fi: "Varusteet",
+			en: "Equipment",
+		},
+		{
+			fi: "Suoritusjärjestys ja kilpailupäivän ohjelma",
+			en: "Order of attempts and competition day schedule",
+		},
+		{
+			fi: "Vapaaehtoisuus",
+			en: "Voluntary participation",
+		},
+	];
+
+	const isEnglish = /\bcompetition series\b|\bseven-competition\b|\bregistration\b/i.test(text);
+
+	return markers.map((marker, index) => {
+		const numberStart = marker.index ?? 0;
+		const contentStart = numberStart + marker[0].length;
+		const contentEnd = markers[index + 1]?.index ?? text.length;
+		let content = text.slice(contentStart, contentEnd).trim();
+		const title = legacyTitles[index]?.[isEnglish ? "en" : "fi"] ?? `${introTitle} ${marker[1]}`;
+		const originalTitle = legacyTitles[index]?.[isEnglish ? "en" : "fi"];
+
+		if (originalTitle && content.toLocaleLowerCase().startsWith(originalTitle.toLocaleLowerCase())) {
+			content = content.slice(originalTitle.length).trim();
+		}
+
+		return {
+			title,
+			blocks: content ? [textBlock(content, marker[1] ?? String(index + 1))] : [],
+		};
+	});
+}
+
+function splitRuleSections(blocks: PortableTextBlock[]): RuleSection[] {
+	const sections: RuleSection[] = [];
+	let intro: PortableTextBlock[] = [];
+	let current: RuleSection | null = null;
+
+	for (const block of blocks) {
+		if (blockStyle(block) === "h2") {
+			current = { title: blockText(block), blocks: [] };
+			sections.push(current);
+			continue;
+		}
+
+		if (current) {
+			current.blocks.push(block);
+		} else {
+			intro.push(block);
+		}
+	}
+
+	if (intro.length > 0) {
+		sections.unshift({ title: introTitle, blocks: intro });
+	}
+
+	const structuredSections = sections.filter((section) => section.title || section.blocks.length > 0);
+	if (structuredSections.length > 1) return structuredSections;
+
+	const legacySections = splitLegacyNumberedRules(blocks);
+	return legacySections.length > 0 ? legacySections : structuredSections;
+}
+
+const sections = splitRuleSections(value);
+---
+
+<div class="rules-content">
+	{
+		sections.map((section, index) => (
+			<section class="rules-section">
+				<header class="rules-section__header">
+					<span class="rules-section__number">{index + 1}</span>
+					<h2>{section.title}</h2>
+				</header>
+				{section.blocks.length > 0 && (
+					<div class="rules-section__body">
+						<RichPortableText value={section.blocks} />
+					</div>
+				)}
+			</section>
+		))
+	}
+</div>
+
+<style>
+	.rules-content {
+		display: grid;
+		gap: 0;
+	}
+
+	.rules-section {
+		display: grid;
+		gap: var(--spacing-3);
+		padding-block: var(--spacing-5) var(--spacing-6);
+		border-top: 1px solid var(--color-border);
+	}
+
+	.rules-section:first-child {
+		padding-top: var(--spacing-4);
+	}
+
+	.rules-section__header {
+		display: grid;
+		grid-template-columns: 5.25rem minmax(0, 1fr);
+		gap: var(--spacing-5);
+		align-items: baseline;
+	}
+
+	.rules-section__number {
+		color: var(--color-brand);
+		font-family: var(--font-mono);
+		font-size: clamp(2.15rem, 4.4vw, 3.35rem);
+		font-weight: 800;
+		font-variant-numeric: tabular-nums;
+		line-height: 0.9;
+	}
+
+	.rules-section__header h2 {
+		margin: 0;
+		font-size: clamp(1.15rem, 1.8vw, 1.55rem);
+		font-weight: 700;
+		line-height: var(--leading-tight);
+		letter-spacing: 0;
+	}
+
+	.rules-section__body {
+		padding-left: calc(5.25rem + var(--spacing-5));
+	}
+
+	.rules-section__body :global(p:last-child) {
+		margin-bottom: 0;
+	}
+
+	.rules-section__body :global(h3) {
+		margin-top: var(--spacing-6);
+	}
+
+	@media (max-width: 640px) {
+		.rules-section__header {
+			grid-template-columns: 1fr;
+			gap: var(--spacing-2);
+		}
+
+		.rules-section__body {
+			padding-left: 0;
+		}
+	}
+</style>

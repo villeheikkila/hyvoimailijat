@@ -15,6 +15,11 @@ export default defineConfig({
 	build: {
 		inlineStylesheets: "always",
 	},
+	vite: {
+		optimizeDeps: {
+			exclude: ["astro/app/entrypoint/dev", "astro/compiler-runtime"],
+		},
+	},
 	routeRules: {
 		"/": { maxAge: 3600, swr: 604800 },
 		"/en": { maxAge: 3600, swr: 604800 },

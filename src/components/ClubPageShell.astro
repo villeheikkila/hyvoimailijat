@@ -2,6 +2,7 @@
 import type { PortableTextBlock } from "emdash";
 import Base from "../layouts/Base.astro";
 import RichPortableText from "./RichPortableText.astro";
+import RulesPortableText from "./RulesPortableText.astro";
 import type { ClubPageCopy, Locale } from "../utils/club-pages";
 
 interface Props {
@@ -50,11 +51,15 @@ const { copy, lang, content, contentRef, pageKey } = Astro.props;
 		{
 			content && (
 				<div class="rich-content">
-					<RichPortableText
-						value={content}
-						replaceImagesWithLogo={pageKey === "about"}
-						priorityFirstImage
-					/>
+					{pageKey === "rules" ? (
+						<RulesPortableText value={content} introTitle={lang === "fi" ? "Yleistä" : "General"} />
+					) : (
+						<RichPortableText
+							value={content}
+							replaceImagesWithLogo={pageKey === "about"}
+							priorityFirstImage
+						/>
+					)}
 				</div>
 			)
 		}

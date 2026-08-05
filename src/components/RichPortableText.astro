@@ -16,7 +16,19 @@ const {
 	replaceImagesWithLogo = false,
 	priorityFirstImage = false,
 } = Astro.props;
-let didPrioritizeImage = false;
+
+type RenderItem =
+	| { type: "blocks"; blocks: PortableTextBlock[] }
+	| { type: "logo" }
+	| { type: "image"; image: MediaValue; caption?: string; priority: boolean }
+	| { type: "embed"; embed: { type: string; url: string; title: string } }
+	| { type: "table"; title: string; columns: string[]; rows: string[][] };
+
+type PortableTextSpan = {
+	_key?: string;
+	text?: string;
+	marks?: string[];
+};
 
 function isImageBlock(block: PortableTextBlock): boolean {
 	const candidate = block as unknown as { _type?: string; type?: string };
@@ -56,18 +68,148 @@ function imageCaption(block: PortableTextBlock): string | undefined {
 	const candidate = block as unknown as { caption?: unknown };
 	return typeof candidate.caption === "string" && candidate.caption.trim() ? candidate.caption.trim() : undefined;
 }
----
 
-{
-	value.map((block) => {
-		if (isInvalidFileBlock(block)) return null;
+function blockChildren(block: PortableTextBlock): PortableTextSpan[] {
+	const candidate = block as unknown as { _type?: string; type?: string; children?: PortableTextSpan[] };
+	if ((candidate._type ?? candidate.type) !== "block" || !Array.isArray(candidate.children)) return [];
+	return candidate.children;
+}
+
+function normalizeCell(value: string): string {
+	return value.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function isStrongSpan(span: PortableTextSpan): boolean {
+	return Array.isArray(span.marks) && span.marks.includes("strong");
+}
+
+function isLikelyTableTitle(value: string): boolean {
+	return /^(Miehet|Naiset|Pistetilanne|Voimaliigan tilanne)/i.test(value);
+}
+
+function isKnownTableHeader(value: string): boolean {
+	return /^(Sijoitus|Nimi|Paino|Lisäpaino|Yhteistulos|Tulos|Pisteet|Toistot|Toistokisan|Ero)/i.test(value);
+}
+
+function isRankCell(value: string): boolean {
+	return /^\d+\.?$/.test(value);
+}
+
+function firstLegacyTableIndex(cells: Array<{ text: string; strong: boolean }>): number {
+	return cells.findIndex((cell, index) => {
+		if (!cell.strong && !isLikelyTableTitle(cell.text)) return false;
+		const lookahead = cells.slice(index + 1, index + 8).map((next) => next.text);
+		return lookahead.some(isKnownTableHeader);
+	});
+}
+
+function collectTableColumns(
+	cells: Array<{ text: string; strong: boolean }>,
+	startIndex: number,
+	previousColumns: string[] | null,
+): { columns: string[] | null; nextIndex: number } {
+	const headers: string[] = [];
+	let index = startIndex;
+
+	while (index < cells.length && isKnownTableHeader(cells[index].text)) {
+		headers.push(cells[index].text);
+		index += 1;
+	}
+
+	if (headers.length > 0) {
+		return {
+			columns: headers.some((header) => /^Nimi$/i.test(header)) ? headers : ["Nimi", ...headers],
+			nextIndex: index,
+		};
+	}
+
+	return { columns: previousColumns, nextIndex: startIndex };
+}
+
+function isSectionBoundary(cells: Array<{ text: string; strong: boolean }>, index: number): boolean {
+	const cell = cells[index];
+	if (!cell) return true;
+	if (/^(Teksti|Kuva|Video):/i.test(cell.text)) return true;
+	if (cell.strong && isLikelyTableTitle(cell.text)) return true;
+	if (isLikelyTableTitle(cell.text) && cells.slice(index + 1, index + 8).some((next) => isKnownTableHeader(next.text))) {
+		return true;
+	}
+	return false;
+}
+
+function splitLegacyResultTables(block: PortableTextBlock): RenderItem[] | null {
+	const children = blockChildren(block);
+	if (children.length < 12) return null;
+
+	const cells = children
+		.map((span) => ({ span, text: normalizeCell(span.text ?? ""), strong: isStrongSpan(span) }))
+		.filter((cell) => cell.text);
+	const firstTableIndex = firstLegacyTableIndex(cells);
+	if (firstTableIndex === -1) return null;
+
+	const items: RenderItem[] = [];
+	const firstTableSpan = cells[firstTableIndex].span;
+	const firstChildIndex = children.indexOf(firstTableSpan);
+	const introChildren = children.slice(0, firstChildIndex).filter((span) => normalizeCell(span.text ?? ""));
+
+	if (introChildren.length > 0) {
+		items.push({
+			type: "blocks",
+			blocks: [{ ...(block as object), children: introChildren } as unknown as PortableTextBlock],
+		});
+	}
+
+	let columns: string[] | null = null;
+	let index = firstTableIndex;
+
+	while (index < cells.length) {
+		const title = cells[index].text.replace(/:$/, "");
+		if (!cells[index].strong && !isLikelyTableTitle(title)) break;
+		index += 1;
+
+		const columnResult = collectTableColumns(cells, index, columns);
+		columns = columnResult.columns;
+		index = columnResult.nextIndex;
+		if (!columns || columns.length === 0) continue;
+
+		const rows: string[][] = [];
+		while (index < cells.length && !isSectionBoundary(cells, index)) {
+			if (cells.length - index < columns.length) break;
+			const row = cells.slice(index, index + columns.length).map((cell) => cell.text);
+			if (columns[0] === "Sijoitus" && !isRankCell(row[0])) break;
+			rows.push(row);
+			index += columns.length;
+		}
+
+		if (rows.length > 0) {
+			items.push({ type: "table", title, columns, rows });
+		} else {
+			break;
+		}
+	}
+
+	return items.some((item) => item.type === "table") ? items : null;
+}
+
+function buildRenderItems(blocks: PortableTextBlock[]): RenderItem[] {
+	const items: RenderItem[] = [];
+	let pendingBlocks: PortableTextBlock[] = [];
+	let didPrioritizeImage = false;
+
+	const flushBlocks = () => {
+		if (pendingBlocks.length > 0) {
+			items.push({ type: "blocks", blocks: pendingBlocks });
+			pendingBlocks = [];
+		}
+	};
+
+	for (const block of blocks) {
+		if (isInvalidFileBlock(block)) continue;
 
 		if (replaceImagesWithLogo && isImageBlock(block)) {
-			return (
-				<div class="about-content-logo" aria-hidden="true">
-					<HyvLogo class="about-content-logo-img" />
-				</div>
-			);
+			flushBlocks();
+			items.push({ type: "logo" });
+			continue;
 		}
 
 		if (isImageBlock(block)) {
@@ -75,35 +217,146 @@ function imageCaption(block: PortableTextBlock): string | undefined {
 			const caption = imageCaption(block);
 			const priority = priorityFirstImage && !didPrioritizeImage;
 			didPrioritizeImage = true;
-			if (!image) return null;
+			if (!image) continue;
 
+			flushBlocks();
+			items.push({ type: "image", image, caption, priority });
+			continue;
+		}
+
+		const legacyTableItems = splitLegacyResultTables(block);
+		if (legacyTableItems) {
+			flushBlocks();
+			items.push(...legacyTableItems);
+			continue;
+		}
+
+		for (const part of getBlockParts(block)) {
+			if (part.type === "block") {
+				pendingBlocks.push(part.block);
+				continue;
+			}
+
+			flushBlocks();
+			items.push({ type: "embed", embed: part.embed });
+		}
+	}
+
+	flushBlocks();
+	return items;
+}
+
+const renderItems = buildRenderItems(value);
+---
+
+{
+	renderItems.map((item) => {
+		if (item.type === "blocks") {
+			return <PortableText value={item.blocks} />;
+		}
+
+		if (item.type === "logo") {
+			return (
+				<div class="about-content-logo" aria-hidden="true">
+					<HyvLogo class="about-content-logo-img" />
+				</div>
+			);
+		}
+
+		if (item.type === "image") {
 			return (
 				<figure>
 					<ResponsiveImage
-						image={image}
-						alt={image.alt}
-						priority={priority}
+						image={item.image}
+						alt={item.image.alt}
+						priority={item.priority}
 						sizes="(max-width: 900px) 100vw, 680px"
 					/>
-					{caption && <figcaption>{caption}</figcaption>}
+					{item.caption && <figcaption>{item.caption}</figcaption>}
 				</figure>
 			);
 		}
 
-		return getBlockParts(block).map((part) => {
-			if (part.type === "block") return <PortableText value={[part.block]} />;
-
+		if (item.type === "table") {
 			return (
-				<div class:list={["rich-embed", `rich-embed--${part.embed.type}`]}>
-					<iframe
-						src={part.embed.url}
-						title={part.embed.title}
-						loading="lazy"
-						allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-						allowfullscreen
-					/>
-				</div>
+				<section class="legacy-result-table">
+					<h3>{item.title}</h3>
+					<div class="legacy-result-table__scroll">
+						<table>
+							<thead>
+								<tr>
+									{item.columns.map((column) => (
+										<th scope="col">{column}</th>
+									))}
+								</tr>
+							</thead>
+							<tbody>
+								{item.rows.map((row) => (
+									<tr>
+										{row.map((cell) => (
+											<td>{cell}</td>
+										))}
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				</section>
 			);
-		});
+		}
+
+		return (
+			<div class:list={["rich-embed", `rich-embed--${item.embed.type}`]}>
+				<iframe
+					src={item.embed.url}
+					title={item.embed.title}
+					loading="lazy"
+					allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+					allowfullscreen
+				/>
+			</div>
+		);
 	})
 }
+
+<style>
+	.legacy-result-table {
+		margin: 2em 0;
+	}
+
+	.legacy-result-table h3 {
+		margin: 0 0 var(--spacing-3);
+		font-size: var(--font-size-xl);
+	}
+
+	.legacy-result-table__scroll {
+		overflow-x: auto;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+	}
+
+	.legacy-result-table table {
+		width: 100%;
+		min-width: 28rem;
+		border-collapse: collapse;
+		font-size: 0.95em;
+	}
+
+	.legacy-result-table th,
+	.legacy-result-table td {
+		padding: var(--spacing-3) var(--spacing-4);
+		border-bottom: 1px solid var(--color-border-subtle);
+		text-align: left;
+		white-space: nowrap;
+	}
+
+	.legacy-result-table th {
+		color: var(--color-text);
+		background: var(--color-bg-subtle);
+		font-weight: 700;
+	}
+
+	.legacy-result-table tbody tr:last-child td {
+		border-bottom: 0;
+	}
+</style>
