@@ -2,7 +2,7 @@
 import { getEmDashCollection } from "emdash";
 import Base from "../layouts/Base.astro";
 import FeedCard from "../components/FeedCard.astro";
-import ResponsiveImage from "../components/ResponsiveImage.astro";
+import HeroCarousel from "../components/HeroCarousel.astro";
 import {
 	attachVenues,
 	formatEventDateTimeRange,
@@ -35,8 +35,18 @@ if (Astro.cache?.enabled) {
 	Astro.cache.set(venuesCacheHint);
 }
 
-const heroPost = posts.find((post) => post.data.featured_image);
 const latestPosts = posts.slice(0, 10);
+const heroItems = latestPosts
+	.flatMap((post) => {
+		if (!post.data.featured_image) return [];
+		return [{
+			title: post.data.title,
+			href: `/posts/${post.id}`,
+			image: post.data.featured_image,
+			content: post.data.content,
+			publishedAt: post.data.publishedAt,
+		}];
+	});
 const upcomingEvents = getUpcomingEvents(attachVenues(events, venues)).slice(0, 3);
 
 ---
@@ -58,16 +68,7 @@ const upcomingEvents = getUpcomingEvents(attachVenues(events, venues)).slice(0, 
 				<a href="/liity-jaseneksi" class="button primary">Liity jäseneksi</a>
 			</div>
 		</div>
-		{heroPost?.data.featured_image && (
-			<a href={`/posts/${heroPost.id}`} class="hero-media">
-				<ResponsiveImage
-					image={heroPost.data.featured_image}
-					priority
-					sizes="(max-width: 900px) 100vw, 42vw"
-				/>
-				<span>{heroPost.data.title}</span>
-			</a>
-		)}
+		<HeroCarousel items={heroItems} />
 	</section>
 
 	<section class="fact-row home-facts" aria-label="Seuran perustiedot">

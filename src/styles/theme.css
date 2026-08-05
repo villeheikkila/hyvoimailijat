@@ -644,21 +644,146 @@ main {
 	transform: translateY(-1px);
 }
 
-.hero-media {
+.hero-carousel {
+	position: relative;
+	overflow: hidden;
+	min-height: clamp(22rem, 38vw, 31rem);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-bg-subtle);
+	box-shadow: 0 18px 44px color-mix(in srgb, var(--color-shadow) 10%, transparent);
+}
+
+.hero-carousel__track {
+	position: absolute;
+	inset: 0;
+}
+
+.hero-carousel__slide {
+	position: absolute;
+	inset: 0;
 	display: grid;
-	gap: var(--spacing-3);
-	color: var(--color-text-secondary);
+	align-items: end;
+	overflow: hidden;
+	color: white;
+	text-decoration: none;
+	opacity: 0;
+	transform: scale(1.02);
+	transition:
+		opacity 0.42s ease,
+		transform 1.2s ease;
+	pointer-events: none;
 }
 
-.hero-media img {
+.hero-carousel__slide.is-active {
+	opacity: 1;
+	transform: scale(1);
+	pointer-events: auto;
+}
+
+.hero-carousel__slide .responsive-image,
+.hero-carousel__slide picture,
+.hero-carousel__slide img {
+	position: absolute;
+	inset: 0;
+	display: block;
 	width: 100%;
-	aspect-ratio: 4 / 3;
-	object-fit: cover;
-	border-radius: var(--radius);
+	height: 100%;
 }
 
-.hero-media span {
+.hero-carousel__slide img {
+	object-fit: cover;
+}
+
+.hero-carousel__slide::after {
+	position: absolute;
+	inset: 0;
+	content: "";
+	background:
+		linear-gradient(
+			180deg,
+			color-mix(in srgb, black 8%, transparent) 0%,
+			transparent 38%,
+			color-mix(in srgb, black 48%, transparent) 76%,
+			color-mix(in srgb, black 82%, transparent) 100%
+		);
+	pointer-events: none;
+}
+
+.hero-carousel__slide::before {
+	position: absolute;
+	inset: 45% 0 0;
+	z-index: 1;
+	content: "";
+	backdrop-filter: blur(18px);
+	mask-image: linear-gradient(
+		180deg,
+		transparent 0%,
+		rgb(0 0 0 / 0.12) 25%,
+		rgb(0 0 0 / 0.76) 68%,
+		black 100%
+	);
+	pointer-events: none;
+}
+
+.hero-carousel__content {
+	position: relative;
+	z-index: 2;
+	display: grid;
+	gap: var(--spacing-2);
+	padding: 1.375rem 1.75rem 1.75rem;
+}
+
+.hero-carousel__meta {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0 var(--spacing-3);
+	color: color-mix(in srgb, white 76%, transparent);
 	font-size: var(--font-size-sm);
+	font-weight: 700;
+}
+
+.hero-carousel__dot {
+	width: 3px;
+	height: 3px;
+	border-radius: 50%;
+	background: color-mix(in srgb, white 52%, transparent);
+}
+
+.hero-carousel__title {
+	max-width: 17ch;
+	font-size: clamp(1.45rem, 2.05vw, 2rem);
+	font-weight: 780;
+	line-height: var(--leading-tight);
+	text-shadow: 0 1px 18px color-mix(in srgb, black 36%, transparent);
+}
+
+.hero-carousel__controls {
+	position: absolute;
+	right: var(--spacing-5);
+	top: var(--spacing-5);
+	z-index: 3;
+	display: flex;
+	gap: var(--spacing-2);
+}
+
+.hero-carousel__indicator {
+	width: 0.5rem;
+	height: 0.5rem;
+	padding: 0;
+	border: 0;
+	border-radius: 999px;
+	background: color-mix(in srgb, white 34%, transparent);
+	cursor: pointer;
+	transition:
+		background 0.16s ease,
+		width 0.16s ease;
+}
+
+.hero-carousel__indicator.is-active {
+	width: 1.55rem;
+	background: white;
 }
 
 .fact-row {

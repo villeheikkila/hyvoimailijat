@@ -1,0 +1,139 @@
+---
+import type { MediaValue, PortableTextBlock } from "emdash";
+import ResponsiveImage from "./ResponsiveImage.astro";
+import { getPostFeedMeta, type FeedMetaItem } from "../utils/feed";
+
+interface CarouselItem {
+	title: string;
+	href: string;
+	image: MediaValue | string;
+	meta?: FeedMetaItem[];
+	content?: PortableTextBlock[];
+	publishedAt?: Date | null;
+}
+
+interface Props {
+	items: CarouselItem[];
+	locale?: "fi" | "en";
+	ariaLabel?: string;
+}
+
+const {
+	items,
+	locale = "fi",
+	ariaLabel = locale === "fi" ? "Tuoreimmat artikkelit" : "Latest articles",
+} = Astro.props;
+const indicatorLabel = locale === "fi" ? "Näytä artikkeli" : "Show article";
+const slides = items
+	.filter((item) => item.image)
+	.slice(0, 10)
+	.map((item) => ({
+		...item,
+		meta: item.meta ?? getPostFeedMeta(item.publishedAt, item.content, locale),
+	}));
+---
+
+{
+	slides.length > 0 && (
+		<section class="hero-carousel" aria-label={ariaLabel}>
+			<div class="hero-carousel__track">
+				{slides.map((item, index) => (
+					<a
+						href={item.href}
+						class:list={["hero-carousel__slide", index === 0 && "is-active"]}
+						data-carousel-slide
+						aria-hidden={index === 0 ? "false" : "true"}
+						tabindex={index === 0 ? undefined : "-1"}
+					>
+						<ResponsiveImage
+							image={item.image}
+							priority={index === 0}
+							sizes="(max-width: 900px) 100vw, 42vw"
+						/>
+						<span class="hero-carousel__content">
+							<span class="hero-carousel__meta">
+								{item.meta.map((metaItem, metaIndex) => (
+									<>
+										{metaIndex > 0 && <span class="hero-carousel__dot" aria-hidden="true" />}
+										{metaItem.datetime ? (
+											<time datetime={metaItem.datetime}>{metaItem.label}</time>
+										) : (
+											<span>{metaItem.label}</span>
+										)}
+									</>
+								))}
+							</span>
+							<span class="hero-carousel__title">{item.title}</span>
+						</span>
+					</a>
+				))}
+			</div>
+			{slides.length > 1 && (
+				<div class="hero-carousel__controls" aria-label="Valitse artikkeli">
+					{slides.map((item, index) => (
+						<button
+							type="button"
+							class:list={["hero-carousel__indicator", index === 0 && "is-active"]}
+							data-carousel-indicator={index}
+							aria-label={`${indicatorLabel}: ${item.title}`}
+							aria-current={index === 0 ? "true" : "false"}
+						/>
+					))}
+				</div>
+			)}
+		</section>
+	)
+}
+
+<script>
+	const carousels = document.querySelectorAll<HTMLElement>(".hero-carousel");
+
+	for (const carousel of carousels) {
+		const slides = Array.from(carousel.querySelectorAll<HTMLElement>("[data-carousel-slide]"));
+		const indicators = Array.from(carousel.querySelectorAll<HTMLButtonElement>("[data-carousel-indicator]"));
+		if (slides.length < 2) continue;
+
+		let activeIndex = 0;
+		let interval: number | undefined;
+
+		const setActiveSlide = (nextIndex: number) => {
+			activeIndex = (nextIndex + slides.length) % slides.length;
+
+			slides.forEach((slide, index) => {
+				const isActive = index === activeIndex;
+				slide.classList.toggle("is-active", isActive);
+				slide.setAttribute("aria-hidden", String(!isActive));
+				if (isActive) {
+					slide.removeAttribute("tabindex");
+				} else {
+					slide.setAttribute("tabindex", "-1");
+				}
+			});
+
+			indicators.forEach((indicator, index) => {
+				const isActive = index === activeIndex;
+				indicator.classList.toggle("is-active", isActive);
+				indicator.setAttribute("aria-current", String(isActive));
+			});
+		};
+
+		const start = () => {
+			window.clearInterval(interval);
+			interval = window.setInterval(() => setActiveSlide(activeIndex + 1), 5200);
+		};
+
+		indicators.forEach((indicator, index) => {
+			indicator.addEventListener("click", () => {
+				setActiveSlide(index);
+				start();
+			});
+		});
+
+		carousel.addEventListener("mouseenter", () => window.clearInterval(interval));
+		carousel.addEventListener("mouseleave", start);
+		carousel.addEventListener("focusin", () => window.clearInterval(interval));
+		carousel.addEventListener("focusout", start);
+
+		start();
+	}
+</script>
