@@ -18,7 +18,7 @@ const [
 ] = await Promise.all([
 	getEmDashCollection("posts", {
 		orderBy: { published_at: "desc" },
-		limit: 10,
+		limit: 12,
 	}),
 	getEmDashCollection("events", {
 		orderBy: { start_at: "asc" },
@@ -35,7 +35,8 @@ if (Astro.cache?.enabled) {
 	Astro.cache.set(venuesCacheHint);
 }
 
-const latestPosts = posts.slice(0, 10);
+const latestPosts = posts.slice(0, 12);
+const latestGridPosts = latestPosts.slice(0, 12);
 const heroItems = latestPosts
 	.flatMap((post) => {
 		if (!post.data.featured_image) return [];
@@ -121,7 +122,7 @@ const upcomingEvents = getUpcomingEvents(attachVenues(events, venues)).slice(0, 
 			<a href="/posts">Kaikki artikkelit</a>
 		</header>
 		<div class="news-list">
-			{latestPosts.map((post) => (
+			{latestGridPosts.map((post) => (
 				<FeedCard
 					variant="compact"
 					href={`/posts/${post.id}`}
