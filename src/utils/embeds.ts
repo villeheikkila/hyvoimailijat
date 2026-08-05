@@ -140,7 +140,7 @@ function getYouTubeEmbedUrl(value: string): string | null {
 	}
 }
 
-function getEmbedUrl(value: string): Embed | null {
+export function getEmbedUrl(value: string): Embed | null {
 	const youtube = getYouTubeEmbedUrl(value);
 	if (youtube) {
 		return { type: "youtube", url: youtube, title: "YouTube video" };

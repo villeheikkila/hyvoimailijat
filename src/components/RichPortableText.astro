@@ -1,7 +1,7 @@
 ---
 import { PortableText } from "emdash/ui";
 import type { MediaValue, PortableTextBlock } from "emdash";
-import { getBlockParts, isInvalidFileBlock } from "../utils/embeds";
+import { getBlockParts, getEmbedUrl, isInvalidFileBlock } from "../utils/embeds";
 import HyvLogo from "./HyvLogo.astro";
 import ResponsiveImage from "./ResponsiveImage.astro";
 
@@ -22,7 +22,9 @@ type RenderItem =
 	| { type: "logo" }
 	| { type: "image"; image: MediaValue; caption?: string; priority: boolean }
 	| { type: "embed"; embed: { type: string; url: string; title: string } }
-	| { type: "table"; title: string; columns: string[]; rows: string[][] };
+	| { type: "table"; title: string; columns: string[]; rows: string[][] }
+	| { type: "video"; src: string }
+	| { type: "link"; href: string; label: string };
 
 type PortableTextSpan = {
 	_key?: string;
@@ -33,6 +35,11 @@ type PortableTextSpan = {
 function isImageBlock(block: PortableTextBlock): boolean {
 	const candidate = block as unknown as { _type?: string; type?: string };
 	return candidate._type === "image" || candidate.type === "image";
+}
+
+function blockType(block: PortableTextBlock): string | undefined {
+	const candidate = block as unknown as { _type?: string; type?: string };
+	return candidate._type ?? candidate.type;
 }
 
 function imageBlockToMediaValue(block: PortableTextBlock): MediaValue | null {
@@ -84,11 +91,11 @@ function isStrongSpan(span: PortableTextSpan): boolean {
 }
 
 function isLikelyTableTitle(value: string): boolean {
-	return /^(Miehet|Naiset|Pistetilanne|Voimaliigan tilanne)/i.test(value);
+	return /^(Tulokset|TULOKSET|Miehet|Naiset|Pistetilanne|Voimaliigan tilanne|Jalkakyykky|Kyykky|Penkki|Veto|Maastaveto)/i.test(value);
 }
 
 function isKnownTableHeader(value: string): boolean {
-	return /^(Sijoitus|Nimi|Paino|Lisäpaino|Yhteistulos|Tulos|Pisteet|Toistot|Toistokisan|Ero)/i.test(value);
+	return /^(Sija|Sijoitus|Nimi|Paino|Lisäpaino|Yhteistulos|yhteistulos|Yht\.?|Tulos|Pisteet|Toistot|Toistokisan|Ero|Wilks|WILKS|KERROIN|PAINO|TULOS|SIJOITUS|Kuulantyöntö|Köydenveto|Farmarikävely|Lastaus|Pystypunnerrus|Kahvakuulatyöntö|Omapaino|Lisäpainot)/i.test(value);
 }
 
 function isRankCell(value: string): boolean {
@@ -97,9 +104,11 @@ function isRankCell(value: string): boolean {
 
 function firstLegacyTableIndex(cells: Array<{ text: string; strong: boolean }>): number {
 	return cells.findIndex((cell, index) => {
-		if (!cell.strong && !isLikelyTableTitle(cell.text)) return false;
+		const strongHeaderRun = cells.slice(index, index + 8).filter((next) => next.strong).length >= 2;
+		if (!cell.strong && !isLikelyTableTitle(cell.text) && !strongHeaderRun && !isKnownTableHeader(cell.text)) return false;
 		const lookahead = cells.slice(index + 1, index + 8).map((next) => next.text);
-		return lookahead.some(isKnownTableHeader);
+		const numericHeaderRun = lookahead.slice(0, 3).every((next) => isRankCell(next));
+		return lookahead.some(isKnownTableHeader) || strongHeaderRun || numericHeaderRun;
 	});
 }
 
@@ -111,9 +120,24 @@ function collectTableColumns(
 	const headers: string[] = [];
 	let index = startIndex;
 
-	while (index < cells.length && isKnownTableHeader(cells[index].text)) {
+	while (index < cells.length && (isKnownTableHeader(cells[index].text) || isRankCell(cells[index].text))) {
 		headers.push(cells[index].text);
 		index += 1;
+	}
+
+	if (headers.length === 0) {
+		while (index < cells.length && cells[index].strong && !isRankCell(cells[index].text)) {
+			headers.push(cells[index].text);
+			index += 1;
+		}
+	}
+
+	if (headers.length === 0) {
+		const rankIndex = cells.slice(index, index + 12).findIndex((cell) => isRankCell(cell.text));
+		if (rankIndex > 1) {
+			headers.push(...cells.slice(index, index + rankIndex).map((cell) => cell.text));
+			index += rankIndex;
+		}
 	}
 
 	if (headers.length > 0) {
@@ -131,8 +155,14 @@ function isSectionBoundary(cells: Array<{ text: string; strong: boolean }>, inde
 	if (!cell) return true;
 	if (/^(Teksti|Kuva|Video):/i.test(cell.text)) return true;
 	if (cell.strong && isLikelyTableTitle(cell.text)) return true;
-	if (isLikelyTableTitle(cell.text) && cells.slice(index + 1, index + 8).some((next) => isKnownTableHeader(next.text))) {
-		return true;
+	if (isLikelyTableTitle(cell.text)) {
+		const lookahead = cells.slice(index + 1, index + 8).map((next) => next.text);
+		const numericHeaderRun = lookahead.slice(0, 3).every((next) => isRankCell(next));
+		if (lookahead.some(isKnownTableHeader) || numericHeaderRun) return true;
+	}
+	if (isKnownTableHeader(cell.text)) {
+		const headerRun = cells.slice(index, index + 4).filter((next) => isKnownTableHeader(next.text)).length;
+		if (headerRun >= 2) return true;
 	}
 	return false;
 }
@@ -163,9 +193,14 @@ function splitLegacyResultTables(block: PortableTextBlock): RenderItem[] | null 
 	let index = firstTableIndex;
 
 	while (index < cells.length) {
-		const title = cells[index].text.replace(/:$/, "");
-		if (!cells[index].strong && !isLikelyTableTitle(title)) break;
-		index += 1;
+		let title = "Tulokset";
+		if (cells[index].strong || isLikelyTableTitle(cells[index].text)) {
+			const lookahead = cells.slice(index + 1, index + 8).map((next) => next.text);
+			if (lookahead.some(isKnownTableHeader) || isLikelyTableTitle(cells[index].text)) {
+				title = cells[index].text.replace(/:$/, "");
+				index += 1;
+			}
+		}
 
 		const columnResult = collectTableColumns(cells, index, columns);
 		columns = columnResult.columns;
@@ -191,6 +226,38 @@ function splitLegacyResultTables(block: PortableTextBlock): RenderItem[] | null 
 	return items.some((item) => item.type === "table") ? items : null;
 }
 
+function legacyEmbedItem(block: PortableTextBlock): RenderItem | null {
+	const candidate = block as unknown as { url?: string; provider?: string };
+	if (!candidate.url) return null;
+
+	const embed = getEmbedUrl(candidate.url);
+	if (embed) return { type: "embed", embed };
+
+	return { type: "link", href: candidate.url, label: candidate.provider ?? candidate.url };
+}
+
+function legacyHtmlItem(block: PortableTextBlock): RenderItem | null {
+	const html = (block as unknown as { html?: string }).html ?? "";
+	const videoMatch = html.match(/<video[^>]+src=["']([^"']+)["']/i);
+	if (videoMatch?.[1]) {
+		return { type: "video", src: videoMatch[1] };
+	}
+
+	const linkMatch = html.match(/<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>/is);
+	if (linkMatch?.[1]) {
+		const label = normalizeCell(linkMatch[2].replace(/<[^>]+>/g, "")) || linkMatch[1];
+		return { type: "link", href: linkMatch[1], label };
+	}
+
+	const textUrl = html.match(/https?:\/\/[^\s<>"')]+/i)?.[0];
+	if (textUrl) {
+		const embed = getEmbedUrl(textUrl);
+		return embed ? { type: "embed", embed } : { type: "link", href: textUrl, label: textUrl };
+	}
+
+	return null;
+}
+
 function buildRenderItems(blocks: PortableTextBlock[]): RenderItem[] {
 	const items: RenderItem[] = [];
 	let pendingBlocks: PortableTextBlock[] = [];
@@ -205,6 +272,24 @@ function buildRenderItems(blocks: PortableTextBlock[]): RenderItem[] {
 
 	for (const block of blocks) {
 		if (isInvalidFileBlock(block)) continue;
+
+		if (blockType(block) === "embed") {
+			const item = legacyEmbedItem(block);
+			if (item) {
+				flushBlocks();
+				items.push(item);
+				continue;
+			}
+		}
+
+		if (blockType(block) === "htmlBlock") {
+			const item = legacyHtmlItem(block);
+			if (item) {
+				flushBlocks();
+				items.push(item);
+				continue;
+			}
+		}
 
 		if (replaceImagesWithLogo && isImageBlock(block)) {
 			flushBlocks();
@@ -305,6 +390,22 @@ const renderItems = buildRenderItems(value);
 			);
 		}
 
+		if (item.type === "video") {
+			return (
+				<video class="legacy-video" controls preload="metadata">
+					<source src={item.src} />
+				</video>
+			);
+		}
+
+		if (item.type === "link") {
+			return (
+				<p class="legacy-link">
+					<a href={item.href}>{item.label}</a>
+				</p>
+			);
+		}
+
 		return (
 			<div class:list={["rich-embed", `rich-embed--${item.embed.type}`]}>
 				<iframe
@@ -358,5 +459,18 @@ const renderItems = buildRenderItems(value);
 
 	.legacy-result-table tbody tr:last-child td {
 		border-bottom: 0;
+	}
+
+	.legacy-video {
+		display: block;
+		width: 100%;
+		max-width: 100%;
+		margin: 2em 0;
+		border-radius: var(--radius-lg);
+		background: var(--color-surface);
+	}
+
+	.legacy-link {
+		margin: 1.5em 0;
 	}
 </style>
